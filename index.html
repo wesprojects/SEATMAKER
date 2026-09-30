@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEATMAKER</title>
+<style>
+:root{--bg:#0d0f13;--panel:#151922;--panel2:#1b2130;--line:#2a3242;--ink:#e7ecf5;--mute:#7d8798;
+ --amber:#f5a524;--blue:#78aaff;--green:#5ecf8d;--red:#ff6b6b;--seat:#fff3a0;--mono:'DM Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:12px/1.5 var(--mono);letter-spacing:.02em;
+ overflow:hidden;height:100vh;display:flex;flex-direction:column}
+button,select,input{font:inherit;color:inherit}
+header{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{margin:0;font-size:15px;letter-spacing:.22em;font-weight:700}
+header .build{color:var(--mute);font-size:9px;letter-spacing:.14em}
+header .brand{margin-left:8px;flex:0 0 auto;line-height:0}
+header .job{margin-left:6px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:5px 9px;width:190px}
+.spacer{flex:1}
+.tools .out{font-size:13px;font-weight:700;letter-spacing:.18em;color:var(--mute);margin-right:2px}
+.btn.big{padding:8px 16px;font-size:11px;letter-spacing:.1em;font-weight:700}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:6px 12px;cursor:pointer;letter-spacing:.1em;font-size:10px}
+.btn:hover{border-color:var(--mute)}
+.btn.on{background:var(--amber);border-color:var(--amber);color:#131313;font-weight:700}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:disabled:hover{border-color:var(--line)}
+.btn.sm{padding:3px 8px;font-size:9px}
+.shell{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 6px var(--paneW,400px);position:relative}
+#split{cursor:col-resize;background:var(--line);opacity:.55;transition:opacity .15s}
+#split:hover,#split.on{opacity:1;background:var(--amber)}
+.stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.tools{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);align-items:center;flex-wrap:wrap}
+.tools .hint{color:var(--mute);font-size:9.5px;letter-spacing:.08em;margin-left:8px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;white-space:nowrap;background:transparent;border:0;padding:6px 12px;cursor:pointer;font-size:9.5px;letter-spacing:.08em;color:var(--mute)}
+.seg button.on{background:var(--amber);color:#131313;font-weight:700}
+.seg button:disabled{opacity:.35;cursor:default}
+#view{flex:1;min-height:0;position:relative}
+#view canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#view canvas.drag{cursor:grabbing}
+#view canvas.add{cursor:crosshair}
+#drop{position:absolute;inset:18px;border:1px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mute);text-align:center;padding:24px}
+#drop.over{border-color:var(--amber);color:var(--amber)}
+#drop .big{font-size:14px;letter-spacing:.2em;color:var(--ink)}
+#drop .small{font-size:10px;letter-spacing:.08em;max-width:460px;line-height:1.6}
+#busy{position:absolute;inset:0;background:rgba(6,8,12,.72);display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.2em;color:var(--amber)}
+#busy[hidden],#drop[hidden]{display:none}
+.stagefoot{display:flex;gap:10px;padding:8px 16px;border-top:1px solid var(--line);font-size:9px;color:var(--mute);letter-spacing:.1em;flex-wrap:wrap;min-height:35px}
+.chip{border:1px solid var(--line);border-radius:20px;padding:3px 10px;background:var(--panel)}
+.chip.ok{border-color:rgba(94,207,141,.5);color:var(--green)}
+.chip.amb{border-color:rgba(245,165,36,.5);color:var(--amber)}
+.chip.bad{border-color:rgba(255,107,107,.55);color:var(--red)}
+.side{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.side .hd{padding:12px 16px 9px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+.side .hd .k{font-size:11px;letter-spacing:.16em;color:var(--amber)}
+.side .hd .s{color:var(--mute);font-size:10px;margin-top:2px;line-height:1.45;word-break:break-all}
+.side .body{padding:12px 16px;overflow:auto;flex:1 1 auto;min-height:0}
+.grp{margin-bottom:16px}
+.grp>.t{font-size:9px;letter-spacing:.16em;color:var(--mute);margin-bottom:6px}
+.row{display:flex;gap:8px;margin-bottom:8px}
+.row>*{flex:1;min-width:0}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mute);letter-spacing:.08em}
+label.f input,label.f select{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font-size:11px;width:100%}
+label.f .mm{color:var(--mute);font-size:9px}
+label.ck{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--ink);letter-spacing:.06em;cursor:pointer}
+label.ck input{accent-color:var(--amber)}
+table.spec{width:100%;border-collapse:collapse;font-size:11px}
+table.spec td{padding:5px 8px;border-bottom:1px solid var(--line)}
+table.spec td:last-child{text-align:right;color:var(--ink)}
+table.spec td:first-child{color:var(--mute);font-size:10px;letter-spacing:.06em}
+table.spec tr:last-child td{border-bottom:0}
+.blk{border:1px solid var(--line);border-radius:7px;padding:7px 9px;margin-bottom:6px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center}
+.blk.act{border-color:rgba(245,165,36,.45);background:rgba(245,165,36,.04)}
+.blk .nm{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .ds{font-size:9px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;grid-column:1}
+.blk select{grid-row:1/3;grid-column:2;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:10px}
+.blk .ct{color:var(--amber)}
+.msg{font-size:10px;line-height:1.55;border:1px solid;border-radius:6px;padding:7px 9px;margin-bottom:6px;letter-spacing:.03em}
+.msg.g{border-color:rgba(94,207,141,.38);color:var(--green);background:rgba(94,207,141,.06)}
+.msg.w{border-color:rgba(245,165,36,.38);color:var(--amber);background:rgba(245,165,36,.06)}
+.msg.e{border-color:rgba(255,107,107,.45);color:var(--red);background:rgba(255,107,107,.07)}
+.note{font-size:10px;color:var(--mute);line-height:1.5;border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-top:10px}
+.more{background:none;border:0;color:var(--blue);cursor:pointer;font-size:9.5px;letter-spacing:.08em;padding:2px 0}
+</style></head>
+<body>
+<header>
+  <div><h1>SEATMAKER</h1><div class="build" id="buildTag"></div></div>
+  <input class="job" id="floorName" placeholder="FLOOR NAME" title="Page name in Visio">
+  <span style="width:14px"></span>
+  <button class="btn" id="loadBtn">LOAD DXF</button>
+  <input id="loadFile" type="file" accept=".dxf" hidden>
+  <button class="btn" id="newBtn">NEW</button>
+  <button class="btn" id="undoBtn" title="Ctrl+Z" disabled>UNDO</button>
+  <div class="spacer"></div>
+  <div class="brand" title="Conklin Office Furniture — Research and Development">
+    <img src="data:image/png;base64,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" alt="CONKLIN OFFICE FURNITURE" style="width:107px;height:24px;display:block">
+    <svg width="107" height="9" viewBox="0 0 107 9" style="display:block;margin-top:1px"><text x="0" y="8" textLength="107" lengthAdjust="spacingAndGlyphs" font-family="'DM Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="7.5" font-weight="700" fill="#f5a524">RESEARCH AND DEVELOPMENT</text></svg>
+  </div>
+</header>
+<div class="shell">
+  <section class="stage">
+    <div class="tools">
+      <span class="out">OUTPUT</span>
+      <button class="btn big" id="btnVSDX" disabled>VSDX</button>
+    </div>
+    <div class="tools">
+      <div class="seg" id="modeSeg">
+        <button data-v="select" class="on">SELECT</button>
+        <button data-v="desk">ADD DESK</button>
+        <button data-v="chair">ADD CHAIR</button>
+      </div>
+      <button class="btn" id="rotBtn" title="R">ROTATE 90</button>
+      <button class="btn" id="fitBtn" title="F">FIT</button>
+      <span class="hint" id="hint">CLICK A SEAT TO REMOVE OR RESTORE IT &middot; DRAG TO PAN &middot; SCROLL TO ZOOM</span>
+    </div>
+    <div id="view">
+      <canvas id="cvs"></canvas>
+      <div id="drop">
+        <div class="big">DROP A DXF HERE</div>
+        <div class="small">OR USE LOAD DXF. SAVE THE DRAWING FROM AUTOCAD AS AN AUTOCAD 2013 DXF, WITH NO FLATTEN, EXPLODE OR PURGE FIRST.</div>
+        <div class="small">THE DRAWING IS READ ON THIS COMPUTER. NOTHING IS UPLOADED.</div>
+      </div>
+      <div id="busy" hidden>READING DRAWING</div>
+    </div>
+    <div class="stagefoot" id="foot"></div>
+  </section>
+  <div id="split" title="Drag to resize the pane"></div>
+  <aside class="side">
+    <div class="hd"><div style="flex:1"><div class="k" id="selK">NO DRAWING</div><div class="s" id="selS">Load a DXF to find the seats.</div></div></div>
+    <div class="body">
+      <div class="grp">
+        <div class="t">SEAT BLOCKS</div>
+        <div id="blkList"><div class="note">Blocks that can be seats appear here after a drawing loads. LaCour 60x33 benching makes two seats per block. CAP task chairs make one seat each.</div></div>
+        <button class="more" id="blkMore" hidden>SHOW ALL FURNITURE BLOCKS</button>
+      </div>
+      <div class="grp">
+        <div class="t">LOOSE DESK RUNS</div>
+        <label class="ck"><input type="checkbox" id="looseCk" checked> <span id="looseTxt">EXPLODED DESK LINEWORK MADE INTO SEATS</span></label>
+      </div>
+      <div class="grp">
+        <div class="t">ADD DESK SIZE</div>
+        <div class="row">
+          <label class="f">WIDTH<input type="number" id="deskW" value="60" step="1" min="12"><span class="mm">INCHES</span></label>
+          <label class="f">DEPTH<input type="number" id="deskD" value="30" step="1" min="12"><span class="mm">INCHES</span></label>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="t">VISIO PAGE</div>
+        <div class="row">
+          <label class="f">SHEET<select id="sheet"><option value="ANSI C">ANSI C 22 x 17</option><option value="ARCH D">ARCH D 36 x 24</option><option value="TABLOID">TABLOID 17 x 11</option></select><span class="mm" id="scaleTxt">SCALE PICKED TO FIT</span></label>
+          <label class="f">FIRST SEAT NUMBER<input type="number" id="startNum" value="1" step="1" min="0"><span class="mm">OFFICES FIRST, THEN ROWS</span></label>
+        </div>
+        <label class="ck"><input type="checkbox" id="labelsCk" checked> ROOM NAMES ON THE PLAN</label>
+      </div>
+      <div class="grp">
+        <div class="t">DRAWING</div>
+        <table class="spec" id="spec"><tr><td>FILE</td><td>&mdash;</td></tr></table>
+      </div>
+      <div class="grp" id="msgs"></div>
+      <div class="note">The Visio file has two layers. FLOOR PLAN is locked so the walls can't be moved. SEATS holds one shape per seat. Double-click a seat in Visio to change its number, and recolor seats by department.</div>
+    </div>
+  </aside>
+</div>
+<script>
+/* ============================================================
+   SEATMAKER ENGINE — DXF in, seats + clean floor plan + VSDX out.
+   Pure functions, no DOM. Runs in the browser and in Node tests.
+   ============================================================ */
+const SM = (() => {
+
+/* ---------- DXF parsing ---------- */
+// Only the entity types the engine uses keep their tags; everything
+// else is kept as a bare record so sequences (INSERT/ATTRIB/SEQEND,
+// POLYLINE/VERTEX) stay intact while memory stays low on 80 MB files.
+const KEEP = new Set(['INSERT', 'ATTRIB', 'SEQEND', 'LINE', 'LWPOLYLINE', 'POLYLINE', 'VERTEX',
+  'CIRCLE', 'ARC', 'ELLIPSE', 'SPLINE', 'TEXT', 'MTEXT', 'BLOCK', 'ENDBLK']);
+
+function parseDXF(text) {
+  if (text.startsWith('AutoCAD Binary DXF')) throw new Error('This is a binary DXF. Save it from AutoCAD as an ASCII DXF (AutoCAD 2013 DXF).');
+  const L = text.split(/\r?\n/);
+  const n = L.length >> 1;
+  const blocks = new Map();          // name -> {base:[x,y,z], ents:[]}
+  const ms = [];                     // model space records
+  const layers = new Map();          // name -> {off, frozen}
+  const owners = new Map();          // handle -> first 330 (dictionaries)
+  const filters = [];                // SPATIAL_FILTER tag lists
+  const header = {};
+  let sec = null, expectName = false, cur = null, curBlock = null, hdrVar = null;
+  const flush = () => {
+    if (!cur) return;
+    const t = cur.t;
+    if (sec === 'ENTITIES') {
+      if (!(t === 'VERTEX' || t === 'SEQEND' || t === 'ATTRIB') && getv(cur, 67) === '1') { cur = null; return; }
+      ms.push(cur);
+    } else if (sec === 'BLOCKS') {
+      if (t === 'BLOCK') {
+        const name = getv(cur, 2).trim();
+        curBlock = { name, base: [num(cur, 10), num(cur, 20), num(cur, 30)], ents: [] };
+        blocks.set(name, curBlock);
+      } else if (t === 'ENDBLK') curBlock = null;
+      else if (curBlock) curBlock.ents.push(cur);
+    } else if (sec === 'TABLES' && t === 'LAYER') {
+      const col = parseInt(getv(cur, 62, '7'), 10), fl = parseInt(getv(cur, 70, '0'), 10);
+      layers.set(getv(cur, 2), { off: col < 0, frozen: (fl & 1) === 1 });
+    } else if (sec === 'OBJECTS') {
+      if (t === 'SPATIAL_FILTER') filters.push(cur);
+      const h = getv(cur, 5), o = getv(cur, 330);
+      if (h && o) owners.set(h.trim(), o.trim());
+    }
+    cur = null;
+  };
+  for (let k = 0; k < n; k++) {
+    const code = parseInt(L[2 * k], 10);
+    const val = L[2 * k + 1];
+    if (code === 0) {
+      flush();
+      const v = val.trim();
+      if (v === 'SECTION') { expectName = true; continue; }
+      if (v === 'ENDSEC') { sec = null; continue; }
+      if (v === 'EOF') break;
+      const keepTags = sec === 'BLOCKS' || sec === 'ENTITIES' ? KEEP.has(v)
+        : sec === 'TABLES' ? v === 'LAYER'
+        : sec === 'OBJECTS' ? true : false;
+      cur = { t: v, c: keepTags ? [] : null, v: keepTags ? [] : null, full: keepTags };
+      if (!keepTags && (sec === 'OBJECTS')) { cur.c = []; cur.v = []; cur.full = false; }
+      continue;
+    }
+    if (expectName && code === 2) { sec = val.trim(); expectName = false; continue; }
+    if (sec === 'HEADER') {
+      if (code === 9) hdrVar = val.trim();
+      else if (hdrVar) (header[hdrVar] = header[hdrVar] || {})[code] = val.trim();
+      continue;
+    }
+    if (!cur || !cur.c) continue;
+    if (sec === 'OBJECTS' && cur.t !== 'SPATIAL_FILTER' && !(code === 5 || code === 330)) continue;
+    cur.c.push(code); cur.v.push(val);
+  }
+  flush();
+  blocks.set('__MS__', { name: '__MS__', base: [0, 0, 0], ents: ms });
+  return { blocks, layers, owners, filters, header };
+}
+function getv(r, code, d) { const i = r.c ? r.c.indexOf(code) : -1; return i < 0 ? d : r.v[i]; }
+function num(r, code, d = 0) { const i = r.c ? r.c.indexOf(code) : -1; return i < 0 ? d : parseFloat(r.v[i]); }
+function all(r, code) { const o = []; if (!r.c) return o; for (let i = 0; i < r.c.length; i++) if (r.c[i] === code) o.push(parseFloat(r.v[i])); return o; }
+
+/* ---------- 3x4 affine matrices ---------- */
+const I = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+function mul(A, B) {
+  const R = new Array(12);
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 4; c++) {
+      R[r * 4 + c] = A[r * 4] * B[c] + A[r * 4 + 1] * B[4 + c] + A[r * 4 + 2] * B[8 + c] + (c === 3 ? A[r * 4 + 3] : 0);
+    }
+  }
+  return R;
+}
+const ap = (M, x, y, z) => [M[0] * x + M[1] * y + M[2] * z + M[3], M[4] * x + M[5] * y + M[6] * z + M[7], M[8] * x + M[9] * y + M[10] * z + M[11]];
+function aaa(nx, ny, nz) {        // AutoCAD arbitrary axis algorithm -> OCS basis as 3x4
+  const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+  let ax;
+  if (Math.abs(nx) < 1 / 64 && Math.abs(ny) < 1 / 64) ax = [nz, 0, -nx];      // Wy x N
+  else ax = [-ny, nx, 0];                                                    // Wz x N
+  let la = Math.hypot(...ax); ax = ax.map(v => v / la);
+  let ay = [ny * ax[2] - nz * ax[1], nz * ax[0] - nx * ax[2], nx * ax[1] - ny * ax[0]];
+  la = Math.hypot(...ay); ay = ay.map(v => v / la);
+  return [ax[0], ay[0], nx, 0, ax[1], ay[1], ny, 0, ax[2], ay[2], nz, 0];
+}
+const isStdExt = r => { const z = num(r, 230, 1); return Math.abs(num(r, 210, 0)) < 1e-12 && Math.abs(num(r, 220, 0)) < 1e-12 && z > 0; };
+const ocsOf = r => isStdExt(r) ? null : aaa(num(r, 210, 0), num(r, 220, 0), num(r, 230, 1));
+function insertMatrix(r, base) {
+  const ip = [num(r, 10), num(r, 20), num(r, 30)];
+  const sx = num(r, 41, 1), sy = num(r, 42, 1), sz = num(r, 43, 1);
+  const a = num(r, 50, 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const L = [c * sx, -s * sy, 0, 0, s * sx, c * sy, 0, 0, 0, 0, sz, 0];
+  const O = ocsOf(r) || I();
+  const OL = mul(O, L);
+  const t = ap(O, ...ip), b = ap(OL, ...base);
+  OL[3] = t[0] - b[0]; OL[7] = t[1] - b[1]; OL[11] = t[2] - b[2];
+  return OL;
+}
+
+/* ---------- entity -> polylines (local coords) ---------- */
+function arcPts(cx, cy, r, a0, a1) {
+  if (a1 < a0) a1 += 2 * Math.PI;
+  const n = Math.max(4, Math.ceil((a1 - a0) / (Math.PI / 24)));
+  const o = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+  return o;
+}
+function bulgeSeg(p0, p1, b, out) {
+  if (Math.abs(b) < 1e-9) { out.push(p1); return; }
+  const th = 4 * Math.atan(b), ch = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+  if (ch < 1e-9) { out.push(p1); return; }
+  const r = ch / (2 * Math.sin(th / 2)), mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2;
+  const d = r * Math.cos(th / 2), ux = (p1[0] - p0[0]) / ch, uy = (p1[1] - p0[1]) / ch;
+  const cx = mx - uy * d, cy = my + ux * d;
+  const n = Math.max(3, Math.ceil(Math.abs(th) / (Math.PI / 24)));
+  for (let i = 1; i <= n; i++) {
+    const t = th * i / n, c = Math.cos(t), s = Math.sin(t);
+    out.push([cx + (p0[0] - cx) * c - (p0[1] - cy) * s, cy + (p0[0] - cx) * s + (p0[1] - cy) * c]);
+  }
+}
+function bspline(ctrl, k, deg) {
+  const t0 = k[deg], t1 = k[k.length - deg - 1], N = Math.max(8, ctrl.length * 4), o = [];
+  for (let i = 0; i <= N; i++) {
+    const t = t0 + (t1 - t0) * i / N;
+    let s = deg; while (s < ctrl.length - 1 && k[s + 1] <= t) s++;
+    const d = []; for (let j = 0; j <= deg; j++) d.push(ctrl[j + s - deg].slice());
+    for (let r = 1; r <= deg; r++) for (let j = deg; j >= r; j--) {
+      const den = k[j + 1 + s - r] - k[j + s - deg], a = den === 0 ? 0 : (t - k[j + s - deg]) / den;
+      d[j] = [(1 - a) * d[j - 1][0] + a * d[j][0], (1 - a) * d[j - 1][1] + a * d[j][1], (1 - a) * d[j - 1][2] + a * d[j][2]];
+    }
+    o.push(d[deg]);
+  }
+  return o;
+}
+// returns list of point arrays [[x,y,z],...] in block coords
+function entPolys(r) {
+  const t = r.t;
+  const O = ocsOf(r);
+  const ocs = (pts, z) => pts.map(p => O ? ap(O, p[0], p[1], z) : [p[0], p[1], z]);
+  if (t === 'LINE') return [[[num(r, 10), num(r, 20), num(r, 30)], [num(r, 11), num(r, 21), num(r, 31)]]];
+  if (t === 'LWPOLYLINE') {
+    const pts = [], bl = [];
+    for (let i = 0; i < r.c.length; i++) {
+      if (r.c[i] === 10) { pts.push([parseFloat(r.v[i]), 0]); bl.push(0); }
+      else if (r.c[i] === 20 && pts.length) pts[pts.length - 1][1] = parseFloat(r.v[i]);
+      else if (r.c[i] === 42 && pts.length) bl[bl.length - 1] = parseFloat(r.v[i]);
+    }
+    if (pts.length < 2) return [];
+    const closed = (num(r, 70, 0) & 1) === 1, o = [pts[0]];
+    const m = closed ? pts.length : pts.length - 1;
+    for (let i = 0; i < m; i++) bulgeSeg(pts[i], pts[(i + 1) % pts.length], bl[i], o);
+    return [ocs(o, num(r, 38, 0))];
+  }
+  if (t === 'CIRCLE') return [ocs(arcPts(num(r, 10), num(r, 20), num(r, 40), 0, 2 * Math.PI), num(r, 30))];
+  if (t === 'ARC') return [ocs(arcPts(num(r, 10), num(r, 20), num(r, 40), num(r, 50) * Math.PI / 180, num(r, 51) * Math.PI / 180), num(r, 30))];
+  if (t === 'ELLIPSE') {
+    const c = [num(r, 10), num(r, 20), num(r, 30)], m = [num(r, 11), num(r, 21), num(r, 31)], ra = num(r, 40, 1);
+    let s = num(r, 41, 0), e = num(r, 42, 2 * Math.PI); if (e < s) e += 2 * Math.PI;
+    const nz = [num(r, 210, 0), num(r, 220, 0), num(r, 230, 1)];
+    const mn = [(nz[1] * m[2] - nz[2] * m[1]) * ra, (nz[2] * m[0] - nz[0] * m[2]) * ra, (nz[0] * m[1] - nz[1] * m[0]) * ra];
+    const N = Math.max(8, Math.ceil((e - s) / (Math.PI / 24))), o = [];
+    for (let i = 0; i <= N; i++) { const a = s + (e - s) * i / N, ca = Math.cos(a), sa = Math.sin(a); o.push([c[0] + m[0] * ca + mn[0] * sa, c[1] + m[1] * ca + mn[1] * sa, c[2] + m[2] * ca + mn[2] * sa]); }
+    return [o];
+  }
+  if (t === 'SPLINE') {
+    const deg = num(r, 71, 3), k = all(r, 40), xs = all(r, 10), ys = all(r, 20), zs = all(r, 30);
+    const cp = xs.map((x, i) => [x, ys[i], zs[i] || 0]);
+    if (cp.length > deg && k.length === cp.length + deg + 1 && all(r, 41).length === 0) return [bspline(cp, k, deg)];
+    const fx = all(r, 11), fy = all(r, 21), fz = all(r, 31);
+    const fp = fx.map((x, i) => [x, fy[i], fz[i] || 0]);
+    return [fp.length > 1 ? fp : cp];
+  }
+  return [];
+}
+
+/* ---------- clipping ---------- */
+function inside(x, y, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[j];
+    if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) c = !c;
+  }
+  return c;
+}
+function clipToPoly(pts, poly) {
+  const res = []; let cur = [];
+  for (let s = 0; s < pts.length - 1; s++) {
+    const a = pts[s], b = pts[s + 1], ts = [0, 1];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length];
+      const d1x = b[0] - a[0], d1y = b[1] - a[1], d2x = q[0] - p[0], d2y = q[1] - p[1];
+      const den = d1x * d2y - d1y * d2x; if (Math.abs(den) < 1e-12) continue;
+      const t = ((p[0] - a[0]) * d2y - (p[1] - a[1]) * d2x) / den, u = ((p[0] - a[0]) * d1y - (p[1] - a[1]) * d1x) / den;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+    }
+    ts.sort((x, y) => x - y);
+    for (let i = 0; i < ts.length - 1; i++) {
+      const t0 = ts[i], t1 = ts[i + 1];
+      const P = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0], Q = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1];
+      if (inside((P[0] + Q[0]) / 2, (P[1] + Q[1]) / 2, poly)) {
+        if (cur.length && Math.hypot(cur[cur.length - 1][0] - P[0], cur[cur.length - 1][1] - P[1]) < 1e-6) cur.push(Q);
+        else { if (cur.length > 1) res.push(cur); cur = [P, Q]; }
+      } else { if (cur.length > 1) res.push(cur); cur = []; }
+    }
+  }
+  if (cur.length > 1) res.push(cur);
+  return res;
+}
+
+/* ---------- walk: flatten everything once ---------- */
+// Produces world-space 2D polylines tagged with layer, text labels,
+// every block insert (with world matrix and CAP description), and the
+// set of desk-block inserts each polyline sits under.
+function flatten(dxf, onProgress) {
+  const { blocks, layers, owners, filters } = dxf;
+  const clipmap = new Map();
+  for (const f of filters) {
+    const d = getv(f, 330, '').trim(), xd = owners.get(d), ins = xd && owners.get(xd);
+    if (!ins) continue;
+    let pts = []; const xs = all(f, 10), ys = all(f, 20);
+    for (let i = 0; i < Math.min(xs.length, ys.length); i++) pts.push([xs[i], ys[i]]);
+    const m = all(f, 40);
+    const A1 = m.length >= 12 ? m.slice(0, 12) : I();
+    if (pts.length === 2) { const [[x0, y0], [x1, y1]] = pts; pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]; }
+    if (pts.length >= 3) clipmap.set(ins, pts.map(([x, y]) => ap(A1, x, y, 0)));
+  }
+  const hidden = name => { const l = layers.get(name); return !!(l && (l.off || l.frozen)); };
+  const polys = [], texts = [], inserts = [];
+  let wrapped = false;
+  const msEnts = blocks.get('__MS__').ents;
+  const nonTrivial = msEnts.filter(e => !['SEQEND', 'ATTRIB', 'VERTEX'].includes(e.t));
+  if (nonTrivial.length === 1 && nonTrivial[0].t === 'INSERT') wrapped = true;
+
+  function walk(name, M, layerIn, clips, ancestors, depth) {
+    const blk = blocks.get(name); if (!blk || depth > 16) return;
+    const ents = blk.ents;
+    for (let i = 0; i < ents.length; i++) {
+      const r = ents[i];
+      if (!r.full) continue;
+      let lay = getv(r, 8, '0');
+      if (lay === '0' && layerIn) lay = layerIn;
+      if (hidden(lay)) {
+        if (r.t === 'POLYLINE') while (i + 1 < ents.length && ents[i + 1].t === 'VERTEX') i++;
+        continue;
+      }
+      const t = r.t;
+      if (t === 'INSERT') {
+        const bn = getv(r, 2, '').trim(), b = blocks.get(bn); if (!b) continue;
+        const Mi = mul(M, insertMatrix(r, b.base));
+        const h = (getv(r, 5, '') || '').trim();
+        let cl = clips;
+        if (clipmap.has(h)) {
+          // A1 (first SPATIAL_FILTER matrix) maps the boundary into block space
+          cl = clips.concat([clipmap.get(h).map(p => { const w = ap(Mi, p[0], p[1], p[2]); return [w[0], w[1]]; })]);
+        }
+        // attributes that follow this insert
+        let cappd = '';
+        for (let j = i + 1; j < ents.length && (ents[j].t === 'ATTRIB' || ents[j].t === 'SEQEND'); j++) {
+          if (ents[j].t === 'ATTRIB' && (getv(ents[j], 2, '') || '').trim() === 'CAPPD') cappd = getv(ents[j], 1, '');
+          if (ents[j].t === 'SEQEND') break;
+        }
+        const id = inserts.length;
+        inserts.push({ name: bn, M: Mi, layer: lay, cappd, depth, clipped: cl });
+        walk(bn, Mi, lay, cl, ancestors.concat(id), depth + 1);
+        continue;
+      }
+      let geoms = [];
+      if (t === 'POLYLINE') {
+        const fl = num(r, 70, 0), vs = [];
+        while (i + 1 < ents.length && ents[i + 1].t === 'VERTEX') { const v = ents[++i]; vs.push([num(v, 10), num(v, 20), num(v, 30)]); }
+        if ((fl & 1) && vs.length) vs.push(vs[0]);
+        if (vs.length > 1 && !(fl & (16 | 64))) geoms = [vs];
+      } else if (t === 'TEXT' || t === 'MTEXT') {
+        let txt = '';
+        for (let k = 0; k < r.c.length; k++) if (r.c[k] === 3) txt += r.v[k];
+        txt += getv(r, 1, '');
+        const w = ap(M, num(r, 10), num(r, 20), num(r, 30));
+        if (clips.every(c => inside(w[0], w[1], c))) texts.push({ layer: lay, text: txt, x: w[0], y: w[1] });
+        continue;
+      } else if (t === 'ATTRIB' || t === 'SEQEND' || t === 'VERTEX') continue;
+      else geoms = entPolys(r);
+      for (const g of geoms) {
+        if (!g || g.length < 2) continue;
+        let w = g.map(p => { const q = ap(M, p[0], p[1], p[2]); return [q[0], q[1]]; });
+        let pieces = [w];
+        for (const c of clips) pieces = pieces.flatMap(pc => clipToPoly(pc, c));
+        for (const q of pieces) polys.push({ layer: lay, pts: q, anc: ancestors });
+      }
+    }
+  }
+  walk('__MS__', I(), null, [], [], 0);
+  if (onProgress) onProgress('flattened');
+  return { polys, texts, inserts, clipCount: clipmap.size, wrapped };
+}
+
+/* ---------- block footprints (2D, desk/chair geometry only) ---------- */
+function blockBox(dxf, name, memo = new Map(), depth = 0) {
+  if (memo.has(name)) return memo.get(name);
+  const b = dxf.blocks.get(name); let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  memo.set(name, null);
+  if (b && depth < 12) {
+    for (let i = 0; i < b.ents.length; i++) {
+      const r = b.ents[i]; if (!r.full) continue;
+      let pts = [];
+      if (r.t === 'INSERT') {
+        const bn = getv(r, 2, '').trim(), bb = blockBox(dxf, bn, memo, depth + 1), bd = dxf.blocks.get(bn);
+        if (!bb || !bd) continue;
+        const M = insertMatrix(r, bd.base);
+        pts = [[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]]].map(([x, y]) => ap(M, x, y, 0));
+      } else if (r.t === 'POLYLINE') {
+        while (i + 1 < b.ents.length && b.ents[i + 1].t === 'VERTEX') { const v = b.ents[++i]; pts.push([num(v, 10), num(v, 20)]); }
+      } else if (['LINE', 'LWPOLYLINE', 'CIRCLE', 'ARC', 'ELLIPSE', 'SPLINE'].includes(r.t)) pts = entPolys(r).flat();
+      for (const p of pts) { if (p[0] < x0) x0 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[0] > x1) x1 = p[0]; if (p[1] > y1) y1 = p[1]; }
+    }
+  }
+  const res = x0 <= x1 ? [x0, y0, x1, y1] : null;
+  memo.set(name, res); return res;
+}
+
+/* ---------- seat modes ---------- */
+// OFF, CHAIR (one 30x30 seat at the block's center), DESK (one seat = the
+// block footprint), PAIR (back-to-back: footprint split in two across its depth)
+function defaultMode(name, cappd) {
+  if (/^LaCOUR\s*-\s*60L\s*x\s*33D/i.test(name)) return 'PAIR';
+  if (/task chair/i.test(cappd || '')) return 'CHAIR';
+  return 'OFF';
+}
+function candidates(dxf, flat) {
+  const map = new Map();
+  for (const ins of flat.inserts) {
+    let c = map.get(ins.name);
+    if (!c) { c = { name: ins.name, count: 0, cappd: ins.cappd || '', layer: ins.layer }; map.set(ins.name, c); }
+    c.count++; if (!c.cappd && ins.cappd) c.cappd = ins.cappd;
+  }
+  const list = [...map.values()].filter(c =>
+    c.cappd || /FURN|DESK|SEAT|CHAIR|WORK|STATION|BENCH/i.test(c.layer + ' ' + c.name));
+  for (const c of list) c.mode = defaultMode(c.name, c.cappd);
+  list.sort((a, b) => (a.mode === 'OFF') - (b.mode === 'OFF') || b.count - a.count || a.name.localeCompare(b.name));
+  return list;
+}
+const normAngle = a => {
+  a = Math.atan2(Math.sin(a), Math.cos(a));
+  if (a > Math.PI / 2 + 1e-6) a -= Math.PI;
+  if (a <= -Math.PI / 2 + 1e-6) a += Math.PI;
+  return Math.abs(a) < 1e-6 ? 0 : a;
+};
+function seatsFromBlocks(dxf, flat, modes) {
+  const memo = new Map(), seats = [], deskIns = new Set();
+  flat.inserts.forEach((ins, id) => {
+    const mode = modes.get(ins.name) || 'OFF'; if (mode === 'OFF') return;
+    const M = ins.M, bb = blockBox(dxf, ins.name, memo);
+    const ang = normAngle(Math.atan2(M[4], M[0]));
+    const at = (x, y) => ap(M, x, y, 0);
+    if (mode === 'CHAIR' || !bb) {
+      const c = bb ? at((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2) : at(0, 0);
+      seats.push({ x: c[0], y: c[1], w: 30, h: 30, a: 0, kind: 'O', row: c[1], src: 'auto' });
+      return;
+    }
+    deskIns.add(id);
+    const w = bb[2] - bb[0], h = bb[3] - bb[1], spine = at(0, (bb[1] + bb[3]) / 2)[1];
+    if (mode === 'DESK') {
+      const c = at((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2);
+      seats.push({ x: c[0], y: c[1], w, h, a: ang, kind: 'B', row: c[1], src: 'auto' });
+    } else {
+      const ym = (bb[1] + bb[3]) / 2, rowY = at(0, 0)[1];
+      for (const [ya, yb] of [[bb[1], ym], [ym, bb[3]]]) {
+        const c = at((bb[0] + bb[2]) / 2, (ya + yb) / 2);
+        seats.push({ x: c[0], y: c[1], w, h: yb - ya, a: ang, kind: 'B', row: rowY, src: 'auto' });
+      }
+    }
+  });
+  return { seats, deskIns };
+}
+// Exploded desk runs: linework on a DESK layer that is not inside a desk block.
+function looseRuns(flat, deskIns) {
+  const pieces = flat.polys.filter(p => /DESK/i.test(p.layer) && !p.anc.some(a => deskIns.has(a)));
+  const bbs = pieces.map(p => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of p.pts) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+    return [x0, y0, x1, y1];
+  });
+  const par = bbs.map((_, i) => i);
+  const f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  const order = bbs.map((_, i) => i).sort((a, b) => bbs[a][0] - bbs[b][0]);
+  for (let ii = 0; ii < order.length; ii++) {
+    const i = order[ii], a = bbs[i];
+    for (let jj = ii + 1; jj < order.length; jj++) {
+      const j = order[jj], b = bbs[j];
+      if (b[0] > a[2] + 1) break;
+      if (a[1] <= b[3] + 1 && b[1] <= a[3] + 1) par[f(i)] = f(j);
+    }
+  }
+  const groups = new Map();
+  bbs.forEach((b, i) => {
+    const k = f(i), g = groups.get(k);
+    if (!g) groups.set(k, b.slice()); else { g[0] = Math.min(g[0], b[0]); g[1] = Math.min(g[1], b[1]); g[2] = Math.max(g[2], b[2]); g[3] = Math.max(g[3], b[3]); }
+  });
+  const runs = [], skipped = [];
+  for (const g of groups.values()) {
+    const w = g[2] - g[0], h = g[3] - g[1], k = Math.round(w / 60);
+    if (k >= 1 && Math.abs(w - 60 * k) < 1.5 && h >= 30 && h <= 35) {
+      const seats = [];
+      for (let i = 0; i < k; i++) seats.push({ x: g[0] + 60 * i + 30, y: (g[1] + g[3]) / 2, w: 60, h, a: 0, kind: 'B', row: g[1], src: 'loose' });
+      runs.push({ box: g, seats });
+    } else if (w > 5 && h > 5) skipped.push({ box: g, w, h });
+  }
+  return { runs, skipped };
+}
+
+/* ---------- plan background ---------- */
+const EXCL = /^(A-FURN|AFU|LACOUR|EDGES|G-IMPT|FRAME|A-ANNO|A-DIM|XREF|C-DETAILS|A-EQPM-IDEN|A-AREA-IDEN|LJ-DWG|A-DOOR-IDEN|DEFPOINTS)/i;
+const baseLayer = l => l.split('$0$').pop();
+const isFurn = l => { const b = baseLayer(l); return /^(A-FURN|AFU|LACOUR|EDGES|G-IMPT)/i.test(b) || b === '0'; };
+const keepBg = l => { const b = baseLayer(l); return !EXCL.test(b) && b !== '0'; };
+function pct(arr, p) { const a = Float64Array.from(arr).sort(); return a[Math.min(a.length - 1, Math.max(0, Math.floor(p * (a.length - 1))))]; }
+function planBox(flat) {
+  const xs = [], ys = [];
+  for (const p of flat.polys) if (/WALL|COLS|GLAZ/i.test(baseLayer(p.layer))) for (const [x, y] of p.pts) { xs.push(x); ys.push(y); }
+  if (xs.length < 50) for (const p of flat.polys) for (const [x, y] of p.pts) { xs.push(x); ys.push(y); }
+  if (!xs.length) return [0, 0, 100, 100];
+  return [pct(xs, 0.002) - 40, pct(ys, 0.002) - 40, pct(xs, 0.998) + 40, pct(ys, 0.998) + 40];
+}
+const cleanText = t => t.replace(/\\P/g, ' ').replace(/\\[A-Za-z][^;\\]*;/g, '').replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+function scene(flat) {
+  const box = planBox(flat);
+  const inBox = pts => pts.every(([x, y]) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]);
+  const bg = [], furn = [];
+  for (const p of flat.polys) {
+    if (!inBox(p.pts)) continue;
+    if (keepBg(p.layer)) bg.push(p.pts); else if (isFurn(p.layer)) furn.push(p.pts);
+  }
+  const labels = flat.texts.filter(t => baseLayer(t.layer) === 'A-AREA-IDEN' && t.x >= box[0] && t.x <= box[2] && t.y >= box[1] && t.y <= box[3])
+    .map(t => ({ text: cleanText(t.text), x: t.x, y: t.y })).filter(t => t.text)
+    .filter((t, i, a) => !a.slice(0, i).some(u => u.text === t.text && Math.hypot(u.x - t.x, u.y - t.y) < 24));
+  return { box, bg, furn, labels };
+}
+
+/* ---------- numbering ---------- */
+function numberSeats(seats, start = 1) {
+  const s = seats.slice().sort((a, b) => {
+    const ka = a.kind === 'O' ? [0, -Math.round(a.y / 45), a.x, 0] : [1, -Math.round(a.row / 50), Math.round(a.x), -a.y];
+    const kb = b.kind === 'O' ? [0, -Math.round(b.y / 45), b.x, 0] : [1, -Math.round(b.row / 50), Math.round(b.x), -b.y];
+    for (let i = 0; i < 4; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
+    return 0;
+  });
+  s.forEach((x, i) => x.num = start + i);
+  return s;
+}
+
+/* ---------- VSDX ---------- */
+const SHEETS = { 'ANSI C': [22, 17], 'ARCH D': [36, 24], 'TABLOID': [17, 11] };
+const SCALES = [[96, '1/8" = 1\'-0"'], [128, '3/32" = 1\'-0"'], [192, '1/16" = 1\'-0"'], [384, '1/32" = 1\'-0"']];
+function pickScale(box, sheet) {
+  const [sw, sh] = SHEETS[sheet] || SHEETS['ANSI C'];
+  for (const [r, label] of SCALES) if ((box[2] - box[0]) / r <= sw - 1.5 && (box[3] - box[1]) / r <= sh - 1.5) return { ratio: r, label };
+  const r = Math.ceil(Math.max((box[2] - box[0]) / (sw - 1.5), (box[3] - box[1]) / (sh - 1.5)));
+  return { ratio: r, label: '1:' + r };
+}
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = v => { let s = v.toFixed(4); if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s === '-0' ? '0' : s; };
+
+function vsdxParts(sc, seats, opt) {
+  const sheet = opt.sheet || 'ANSI C', [sw, shh] = SHEETS[sheet];
+  const { ratio } = pickScale(sc.box, sheet);
+  const PW = sw * ratio, PH = shh * ratio, box = sc.box;
+  const OX = (PW - (box[2] - box[0])) / 2 - box[0], OY = (PH - (box[3] - box[1])) / 2 - box[1];
+  const tx = x => x + OX, ty = y => y + OY;
+  const out = []; let sid = 0;
+  const CH = 250;
+  for (let k = 0; k < sc.bg.length; k += CH) {
+    const chunk = sc.bg.slice(k, k + CH);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of chunk) for (const [x, y] of p) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+    x0 = tx(x0); y0 = ty(y0); x1 = tx(x1); y1 = ty(y1);
+    const w = Math.max(x1 - x0, 0.01), h = Math.max(y1 - y0, 0.01);
+    const geo = chunk.map((p, gi) => '<Section N="Geometry" IX="' + gi + '"><Cell N="NoFill" V="1"/><Cell N="NoLine" V="0"/><Cell N="NoShow" V="0"/><Cell N="NoSnap" V="0"/>' +
+      p.map(([x, y], ri) => '<Row T="' + (ri ? 'LineTo' : 'MoveTo') + '" IX="' + (ri + 1) + '"><Cell N="X" V="' + fmt(tx(x) - x0) + '"/><Cell N="Y" V="' + fmt(ty(y) - y0) + '"/></Row>').join('') + '</Section>').join('');
+    const i = ++sid;
+    out.push('<Shape ID="' + i + '" NameU="Floor Plan.' + i + '" Name="Floor Plan.' + i + '" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">' +
+      '<Cell N="PinX" V="' + fmt(x0 + w / 2) + '"/><Cell N="PinY" V="' + fmt(y0 + h / 2) + '"/><Cell N="Width" V="' + fmt(w) + '"/><Cell N="Height" V="' + fmt(h) + '"/>' +
+      '<Cell N="LocPinX" V="' + fmt(w / 2) + '" F="Width*0.5"/><Cell N="LocPinY" V="' + fmt(h / 2) + '" F="Height*0.5"/><Cell N="Angle" V="0"/>' +
+      '<Cell N="LineWeight" V="0.0069"/><Cell N="LineColor" V="#595959"/><Cell N="FillPattern" V="0"/><Cell N="LayerMember" V="0"/>' + geo + '</Shape>');
+  }
+  if (opt.labels !== false) for (const l of sc.labels) {
+    const i = ++sid, w = 144, h = 10;
+    out.push('<Shape ID="' + i + '" NameU="Label.' + i + '" Name="Label.' + i + '" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">' +
+      '<Cell N="PinX" V="' + fmt(tx(l.x)) + '"/><Cell N="PinY" V="' + fmt(ty(l.y)) + '"/><Cell N="Width" V="' + w + '"/><Cell N="Height" V="' + h + '"/>' +
+      '<Cell N="LocPinX" V="' + w / 2 + '" F="Width*0.5"/><Cell N="LocPinY" V="' + h / 2 + '" F="Height*0.5"/>' +
+      '<Cell N="LinePattern" V="0"/><Cell N="FillPattern" V="0"/><Cell N="LayerMember" V="0"/>' +
+      '<Section N="Character"><Row IX="0"><Cell N="Font" V="Arial"/><Cell N="Color" V="#1F5A8A"/><Cell N="Size" V="0.0833"/><Cell N="Style" V="0"/></Row></Section>' +
+      '<Text>' + esc(l.text) + '</Text></Shape>');
+  }
+  const txtSize = ratio <= 96 ? 0.1111 : 0.0833;
+  for (const s of seats) {
+    const i = ++sid;
+    out.push('<Shape ID="' + i + '" NameU="Seat ' + s.num + '" Name="Seat ' + s.num + '" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">' +
+      '<Cell N="PinX" V="' + fmt(tx(s.x)) + '"/><Cell N="PinY" V="' + fmt(ty(s.y)) + '"/><Cell N="Width" V="' + fmt(s.w) + '"/><Cell N="Height" V="' + fmt(s.h) + '"/>' +
+      '<Cell N="LocPinX" V="' + fmt(s.w / 2) + '" F="Width*0.5"/><Cell N="LocPinY" V="' + fmt(s.h / 2) + '" F="Height*0.5"/><Cell N="Angle" V="' + fmt(s.a) + '"/>' +
+      '<Cell N="LineWeight" V="0.0104"/><Cell N="LineColor" V="#404040"/><Cell N="LinePattern" V="1"/>' +
+      '<Cell N="FillForegnd" V="#FFF3A0"/><Cell N="FillPattern" V="1"/><Cell N="Rounding" V="3"/>' +
+      '<Cell N="VerticalAlign" V="1"/><Cell N="LayerMember" V="1"/>' +
+      '<Section N="Character"><Row IX="0"><Cell N="Font" V="Arial"/><Cell N="Color" V="#000000"/><Cell N="Size" V="' + txtSize + '"/><Cell N="Style" V="1"/></Row></Section>' +
+      '<Section N="Paragraph"><Row IX="0"><Cell N="HorzAlign" V="1"/></Row></Section>' +
+      '<Section N="Geometry" IX="0"><Cell N="NoFill" V="0"/><Cell N="NoLine" V="0"/><Cell N="NoShow" V="0"/><Cell N="NoSnap" V="0"/>' +
+      '<Row T="RelMoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row><Row T="RelLineTo" IX="2"><Cell N="X" V="1"/><Cell N="Y" V="0"/></Row>' +
+      '<Row T="RelLineTo" IX="3"><Cell N="X" V="1"/><Cell N="Y" V="1"/></Row><Row T="RelLineTo" IX="4"><Cell N="X" V="0"/><Cell N="Y" V="1"/></Row>' +
+      '<Row T="RelLineTo" IX="5"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row></Section>' +
+      '<Text>' + s.num + '</Text></Shape>');
+  }
+  const NS = 'xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve"';
+  const HDR = '<?xml version="1.0" encoding="utf-8" standalone="yes"?>\n';
+  const pageName = esc(opt.pageName || 'Floor Plan');
+  const layer = (ix, name, lock) => '<Row IX="' + ix + '"><Cell N="Name" V="' + name + '"/><Cell N="Color" V="255"/><Cell N="Status" V="0"/><Cell N="Visible" V="1"/>' +
+    '<Cell N="Print" V="1"/><Cell N="Active" V="0"/><Cell N="Lock" V="' + lock + '"/><Cell N="Snap" V="1"/><Cell N="Glue" V="1"/><Cell N="NameUniv" V="' + name + '"/><Cell N="ColorTrans" V="0"/></Row>';
+  const pages = HDR + '<Pages ' + NS + '><Page ID="0" NameU="' + pageName + '" Name="' + pageName + '" ViewScale="-1" ViewCenterX="' + fmt(PW / 2) + '" ViewCenterY="' + fmt(PH / 2) + '">' +
+    '<PageSheet LineStyle="0" FillStyle="0" TextStyle="0"><Cell N="PageWidth" V="' + fmt(PW) + '" U="FT"/><Cell N="PageHeight" V="' + fmt(PH) + '" U="FT"/>' +
+    '<Cell N="PageScale" V="' + fmt(12 / ratio) + '" U="IN"/><Cell N="DrawingScale" V="12" U="FT"/><Cell N="DrawingSizeType" V="0"/><Cell N="DrawingScaleType" V="3"/>' +
+    '<Cell N="InhibitSnap" V="0"/><Cell N="PageLockReplace" V="0"/><Cell N="PageLockDuplicate" V="0"/><Cell N="UIVisibility" V="0"/><Cell N="ShdwType" V="0"/>' +
+    '<Cell N="PrintPageOrientation" V="2"/><Cell N="PageShapeSplit" V="1"/><Section N="Layer">' + layer(0, 'Floor Plan', 1) + layer(1, 'Seats', 0) + '</Section></PageSheet><Rel r:id="rId1"/></Page></Pages>';
+  const cells = [['EnableLineProps', '1'], ['EnableFillProps', '1'], ['EnableTextProps', '1'], ['HideForApply', '0'], ['LineWeight', '0.01041666666666667'], ['LineColor', '0'], ['LinePattern', '1'], ['Rounding', '0'],
+    ['EndArrowSize', '2'], ['BeginArrow', '0'], ['EndArrow', '0'], ['LineCap', '0'], ['BeginArrowSize', '2'], ['LineColorTrans', '0'], ['CompoundType', '0'], ['FillForegnd', '1'], ['FillBkgnd', '0'], ['FillPattern', '1'],
+    ['ShdwForegnd', '0'], ['ShdwPattern', '0'], ['FillForegndTrans', '0'], ['FillBkgndTrans', '0'], ['ShdwForegndTrans', '0'], ['ShapeShdwType', '0'], ['ShapeShdwOffsetX', '0'], ['ShapeShdwOffsetY', '0'],
+    ['LeftMargin', '0.05555555555555555'], ['RightMargin', '0.05555555555555555'], ['TopMargin', '0.05555555555555555'], ['BottomMargin', '0.05555555555555555'],
+    ['VerticalAlign', '1'], ['TextBkgnd', '0'], ['TextBkgndTrans', '0'], ['TextDirection', '0'], ['DefaultTabStop', '0.5']];
+  const style0 = '<StyleSheet ID="0" NameU="No Style" IsCustomNameU="1" Name="No Style" IsCustomName="1">' + cells.map(([k, v]) => '<Cell N="' + k + '" V="' + v + '"/>').join('') +
+    '<Section N="Character"><Row IX="0"><Cell N="Font" V="Calibri"/><Cell N="Color" V="0"/><Cell N="Style" V="0"/><Cell N="Case" V="0"/><Cell N="Pos" V="0"/><Cell N="FontScale" V="1"/><Cell N="Size" V="0.1666666666666667"/><Cell N="ColorTrans" V="0"/></Row></Section>' +
+    '<Section N="Paragraph"><Row IX="0"><Cell N="IndFirst" V="0"/><Cell N="IndLeft" V="0"/><Cell N="IndRight" V="0"/><Cell N="SpLine" V="-1.2"/><Cell N="SpBefore" V="0"/><Cell N="SpAfter" V="0"/><Cell N="HorzAlign" V="1"/><Cell N="Bullet" V="0"/></Row></Section></StyleSheet>';
+  const document = HDR + '<VisioDocument ' + NS + '><DocumentSettings TopPage="0" DefaultTextStyle="0" DefaultLineStyle="0" DefaultFillStyle="0" DefaultGuideStyle="0">' +
+    '<GlueSettings>9</GlueSettings><SnapSettings>65847</SnapSettings><SnapExtensions>34</SnapExtensions><SnapAngles/><DynamicGridEnabled>1</DynamicGridEnabled><ProtectStyles>0</ProtectStyles>' +
+    '<ProtectShapes>0</ProtectShapes><ProtectMasters>0</ProtectMasters><ProtectBkgnds>0</ProtectBkgnds></DocumentSettings><Colors><ColorEntry IX="0" RGB="#000000"/><ColorEntry IX="1" RGB="#FFFFFF"/></Colors>' +
+    '<FaceNames><FaceName NameU="Calibri" UnicodeRanges="-536859905 -1073732485 9 0" CharSets="536871423 0" Panose="2 15 5 2 2 2 4 3 2 4" Flags="325"/>' +
+    '<FaceName NameU="Arial" UnicodeRanges="-536859905 -1073711037 9 0" CharSets="1073742335 -65536" Panose="2 11 6 4 2 2 2 2 2 4" Flags="325"/></FaceNames><StyleSheets>' + style0 + '</StyleSheets></VisioDocument>';
+  const windows = HDR + '<Windows ClientWidth="1600" ClientHeight="900" ' + NS + '><Window ID="0" WindowType="Drawing" WindowState="1073741824" WindowLeft="0" WindowTop="0" WindowWidth="1600" WindowHeight="900" ContainerType="Page" Page="0" ViewScale="-1" ViewCenterX="' + fmt(PW / 2) + '" ViewCenterY="' + fmt(PH / 2) + '">' +
+    '<ShowRulers>1</ShowRulers><ShowGrid>0</ShowGrid><ShowPageBreaks>0</ShowPageBreaks><ShowGuides>1</ShowGuides><ShowConnectionPoints>0</ShowConnectionPoints><GlueSettings>9</GlueSettings><SnapSettings>65847</SnapSettings><SnapExtensions>34</SnapExtensions><SnapAngles/><DynamicGridEnabled>1</DynamicGridEnabled><TabSplitterPos>0.5</TabSplitterPos></Window></Windows>';
+  const R = 'http://schemas.openxmlformats.org/package/2006/relationships';
+  return [
+    ['[Content_Types].xml', HDR + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.drawing.main+xml"/><Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/><Override PartName="/visio/pages/page1.xml" ContentType="application/vnd.ms-visio.page+xml"/>' +
+      '<Override PartName="/visio/windows.xml" ContentType="application/vnd.ms-visio.windows+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>'],
+    ['_rels/.rels', HDR + '<Relationships xmlns="' + R + '"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/document" Target="visio/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>'],
+    ['docProps/core.xml', HDR + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>' + pageName + ' Seating Plan</dc:title><dc:creator>SEATMAKER</dc:creator></cp:coreProperties>'],
+    ['docProps/app.xml', HDR + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Microsoft Visio</Application><AppVersion>16.0000</AppVersion></Properties>'],
+    ['visio/document.xml', document],
+    ['visio/_rels/document.xml.rels', HDR + '<Relationships xmlns="' + R + '"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/><Relationship Id="rId2" Type="http://schemas.microsoft.com/visio/2010/relationships/windows" Target="windows.xml"/></Relationships>'],
+    ['visio/windows.xml', windows],
+    ['visio/pages/pages.xml', pages],
+    ['visio/pages/_rels/pages.xml.rels', HDR + '<Relationships xmlns="' + R + '"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/page" Target="page1.xml"/></Relationships>'],
+    ['visio/pages/page1.xml', HDR + '<PageContents ' + NS + '><Shapes>' + out.join('') + '</Shapes></PageContents>'],
+  ];
+}
+
+/* ---------- minimal ZIP (stored) ---------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zip(files) {
+  const enc = new TextEncoder(), chunks = [], central = []; let off = 0;
+  const d = new Date(), dt = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(), tm = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  for (const [name, text] of files) {
+    const nb = enc.encode(name), data = typeof text === 'string' ? enc.encode(text) : text, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, tm, true); h.setUint16(12, dt, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+    h.setUint16(26, nb.length, true); h.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(h.buffer), nb, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, tm, true); c.setUint16(14, dt, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+    c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), nb);
+    off += 30 + nb.length + data.length;
+  }
+  const cs = central.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+  const all = [...chunks, ...central, new Uint8Array(e.buffer)], total = all.reduce((a, b) => a + b.length, 0), out = new Uint8Array(total);
+  let p = 0; for (const a of all) { out.set(a, p); p += a.length; }
+  return out;
+}
+
+return { parseDXF, flatten, candidates, seatsFromBlocks, looseRuns, scene, numberSeats, vsdxParts, zip, pickScale, SHEETS, blockBox };
+})();
+
+
+</script>
+<script>
+const BUILD = "2026-09-30.1";
+document.getElementById('buildTag').textContent = "BUILD " + BUILD;
+const $ = id => document.getElementById(id);
+const S = { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
+  removed: new Set(), added: [], edits: [], seats: [], mode: 'select', rot: false, showAll: false, hover: null,
+  view: { s: 1, ox: 0, oy: 0 }, paths: null };
+const key = s => Math.round(s.x * 10) + ',' + Math.round(s.y * 10);
+const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+/* ---------- load ---------- */
+async function loadFile(file) {
+  if (!file) return;
+  if (!/\.dxf$/i.test(file.name)) { msg([['e', 'SEATMAKER reads DXF files. In AutoCAD use SAVEAS and pick AutoCAD 2013 DXF.']]); return; }
+  $('busy').hidden = false; $('busy').textContent = 'READING DRAWING'; await frame();
+  try {
+    const buf = await file.arrayBuffer();
+    const text = new TextDecoder('windows-1252').decode(buf);
+    $('busy').textContent = 'PARSING ' + (buf.byteLength / 1e6).toFixed(1) + ' MB'; await frame();
+    const dxf = SM.parseDXF(text);
+    $('busy').textContent = 'FLATTENING BLOCKS AND CLIPS'; await frame();
+    const flat = SM.flatten(dxf);
+    const sc = SM.scene(flat);
+    reset(false);
+    Object.assign(S, { file, dxf, flat, sc });
+    S.cands = SM.candidates(dxf, flat);
+    S.modes = new Map(S.cands.map(c => [c.name, c.mode]));
+    if (!$('floorName').value) $('floorName').value = file.name.replace(/\.dxf$/i, '');
+    buildPaths();
+    derive();
+    renderBlocks();
+    $('drop').hidden = true;
+    fit();
+  } catch (err) {
+    console.error(err);
+    msg([['e', 'Could not read this file: ' + err.message]]);
+  } finally { $('busy').hidden = true; }
+}
+function reset(clearName = true) {
+  Object.assign(S, { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
+    removed: new Set(), added: [], edits: [], seats: [], hover: null, paths: null });
+  if (clearName) $('floorName').value = '';
+  $('drop').hidden = false; $('blkList').innerHTML = '<div class="note">Blocks that can be seats appear here after a drawing loads.</div>';
+  $('blkMore').hidden = true; $('msgs').innerHTML = ''; $('spec').innerHTML = '<tr><td>FILE</td><td>&mdash;</td></tr>';
+  $('selK').textContent = 'NO DRAWING'; $('selS').textContent = 'Load a DXF to find the seats.';
+  $('btnVSDX').disabled = true; $('undoBtn').disabled = true; $('foot').innerHTML = '';
+  draw();
+}
+
+/* ---------- seats ---------- */
+function derive() {
+  if (!S.flat) return;
+  const r = SM.seatsFromBlocks(S.dxf, S.flat, S.modes);
+  S.auto = r.seats; S.deskIns = r.deskIns;
+  S.loose = SM.looseRuns(S.flat, S.deskIns);
+  renumber();
+}
+function renumber() {
+  const autoAll = S.auto.concat($('looseCk').checked ? S.loose.runs.flatMap(r => r.seats) : []);
+  const live = autoAll.filter(s => !S.removed.has(key(s))).concat(S.added);
+  S.seats = SM.numberSeats(live, parseInt($('startNum').value, 10) || 0);
+  S.ghosts = autoAll.filter(s => S.removed.has(key(s)));
+  report(); draw();
+}
+function pushEdit(e) { S.edits.push(e); $('undoBtn').disabled = false; }
+function undo() {
+  const e = S.edits.pop(); if (!e) return;
+  if (e.t === 'rm') S.removed.delete(e.k);
+  else if (e.t === 'restore') S.removed.add(e.k);
+  else if (e.t === 'add') S.added = S.added.filter(s => s !== e.s);
+  else if (e.t === 'del') S.added.push(e.s);
+  $('undoBtn').disabled = !S.edits.length; renumber();
+}
+function hitSeat(list, x, y) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i], c = Math.cos(-s.a), n = Math.sin(-s.a), dx = x - s.x, dy = y - s.y;
+    const lx = dx * c - dy * n, ly = dx * n + dy * c;
+    if (Math.abs(lx) <= s.w / 2 && Math.abs(ly) <= s.h / 2) return s;
+  }
+  return null;
+}
+function clickAt(x, y) {
+  if (!S.flat) return;
+  if (S.mode === 'select') {
+    const g = hitSeat(S.ghosts, x, y);
+    const s = hitSeat(S.seats, x, y);
+    if (s && s.src === 'added') { S.added = S.added.filter(a => a !== s); pushEdit({ t: 'del', s }); }
+    else if (s) { const k = key(s); S.removed.add(k); pushEdit({ t: 'rm', k }); }
+    else if (g) { const k = key(g); S.removed.delete(k); pushEdit({ t: 'restore', k }); }
+    else return;
+  } else {
+    let w, h, kind;
+    if (S.mode === 'chair') { w = h = 30; kind = 'O'; }
+    else { w = +$('deskW').value || 60; h = +$('deskD').value || 30; kind = 'B'; if (S.rot) [w, h] = [h, w]; }
+    const s = { x, y, w, h, a: 0, kind, row: y, src: 'added' };
+    S.added.push(s); pushEdit({ t: 'add', s });
+  }
+  renumber();
+}
+
+/* ---------- side pane ---------- */
+const fixText = t => { try { return /[\u00c2-\u00f4][\u0080-\u00bf\u2018-\u203a\u20ac\ufffd]/.test(t) ? decodeURIComponent(escape(t)) : t; } catch (e) { return t.replace(/\u00e2\u20ac\ufffd?/g, '"'); } };
+const MODE_TXT = { OFF: 'NOT A SEAT', CHAIR: '1 SEAT (CHAIR)', DESK: '1 SEAT (DESK)', PAIR: '2 SEATS (BACK TO BACK)' };
+function renderBlocks() {
+  const list = S.showAll ? S.cands : S.cands.filter(c => c.mode !== 'OFF' || S.modes.get(c.name) !== 'OFF' || c.cappd);
+  const box = $('blkList'); box.innerHTML = '';
+  if (!list.length) box.innerHTML = '<div class="note">No furniture blocks found. Use ADD DESK and ADD CHAIR to place seats by hand.</div>';
+  for (const c of list) {
+    const m = S.modes.get(c.name) || 'OFF';
+    const d = document.createElement('div'); d.className = 'blk' + (m !== 'OFF' ? ' act' : '');
+    d.innerHTML = '<div class="nm" title="' + c.name.replace(/"/g, '&quot;') + '"><span class="ct">' + c.count + '&times;</span> ' + c.name.replace(/</g, '&lt;') + '</div>' +
+      '<div class="ds">' + (c.cappd ? fixText(c.cappd).replace(/</g, '&lt;') : c.layer.replace(/</g, '&lt;')) + '</div>';
+    const sel = document.createElement('select');
+    for (const k of Object.keys(MODE_TXT)) { const o = document.createElement('option'); o.value = k; o.textContent = MODE_TXT[k]; if (k === m) o.selected = true; sel.appendChild(o); }
+    sel.onchange = () => { S.modes.set(c.name, sel.value); d.className = 'blk' + (sel.value !== 'OFF' ? ' act' : ''); derive(); };
+    d.appendChild(sel); box.appendChild(d);
+  }
+  const hiddenN = S.cands.length - list.length;
+  $('blkMore').hidden = S.showAll || hiddenN <= 0;
+  $('blkMore').textContent = 'SHOW ALL FURNITURE BLOCKS (' + hiddenN + ' MORE)';
+}
+function msg(list) { $('msgs').innerHTML = list.map(([k, t]) => '<div class="msg ' + k + '">' + t + '</div>').join(''); }
+function report() {
+  if (!S.flat) return;
+  const seats = S.seats, nB = seats.filter(s => s.kind === 'B').length, nO = seats.length - nB;
+  const lr = S.loose.runs, ls = lr.reduce((a, r) => a + r.seats.length, 0);
+  const sc = SM.pickScale(S.sc.box, $('sheet').value);
+  $('selK').textContent = seats.length + ' SEATS';
+  $('selS').textContent = S.file.name;
+  $('looseTxt').textContent = lr.length ? 'INCLUDE ' + lr.length + ' EXPLODED RUN' + (lr.length > 1 ? 'S' : '') + ' (' + ls + ' SEATS)' : 'NONE FOUND IN THIS DRAWING';
+  $('looseCk').disabled = !lr.length;
+  $('scaleTxt').textContent = 'SCALE ' + sc.label;
+  $('spec').innerHTML = [['FILE', S.file.name], ['SIZE', (S.file.size / 1e6).toFixed(1) + ' MB'], ['PLAN LINES', S.sc.bg.length.toLocaleString()],
+    ['ROOM NAMES', S.sc.labels.length], ['CLIP BOUNDARIES', S.flat.clipCount], ['FLOOR IN ONE BLOCK', S.flat.wrapped ? 'YES, OPENED' : 'NO']]
+    .map(([a, b]) => '<tr><td>' + a + '</td><td>' + String(b).replace(/</g, '&lt;') + '</td></tr>').join('');
+  const m = [];
+  m.push(['g', seats.length + ' seats: ' + nB + ' at desks, ' + nO + ' office chairs.']);
+  if (S.flat.clipCount) m.push(['g', S.flat.clipCount + ' clipped block' + (S.flat.clipCount > 1 ? 's' : '') + ' (XCLIP) trimmed to what AutoCAD shows.']);
+  if (S.loose.skipped.length) m.push(['w', S.loose.skipped.length + ' loose desk-layer piece' + (S.loose.skipped.length > 1 ? 's' : '') + ' not counted (' +
+    S.loose.skipped.map(k => Math.round(k.w) + 'x' + Math.round(k.h)).join(', ') + '). They have no desk split, so they read as end tables or storage. Use ADD DESK if one is a seat.']);
+  if (!seats.length) m.push(['w', 'No seats found. Set a block to a seat type above, or place seats with ADD DESK and ADD CHAIR.']);
+  msg(m);
+  $('foot').innerHTML = ['<span class="chip ok">' + seats.length + ' SEATS</span>', '<span class="chip">' + nB + ' DESKS</span>', '<span class="chip">' + nO + ' CHAIRS</span>',
+    S.removed.size ? '<span class="chip bad">' + S.removed.size + ' REMOVED</span>' : '', S.added.length ? '<span class="chip amb">' + S.added.length + ' ADDED</span>' : '',
+    '<span class="chip">' + $('sheet').value + ' &middot; ' + sc.label + '</span>'].join('');
+  $('btnVSDX').disabled = !seats.length; $('btnVSDX').classList.toggle('on', !!seats.length);
+}
+
+/* ---------- canvas ---------- */
+const cvs = $('cvs'), ctx = cvs.getContext('2d');
+function buildPaths() {
+  const mk = list => { const p = new Path2D(); for (const pts of list) { p.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) p.lineTo(pts[i][0], pts[i][1]); } return p; };
+  S.paths = { bg: mk(S.sc.bg), furn: mk(S.sc.furn) };
+}
+function resize() {
+  const r = cvs.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cvs.width = Math.max(1, r.width * d); cvs.height = Math.max(1, r.height * d); draw();
+}
+function fit() {
+  if (!S.sc) return;
+  const r = cvs.getBoundingClientRect(), b = S.sc.box, pad = 30;
+  const s = Math.min((r.width - 2 * pad) / (b[2] - b[0]), (r.height - 2 * pad) / (b[3] - b[1]));
+  S.view = { s, ox: r.width / 2 - s * (b[0] + b[2]) / 2, oy: r.height / 2 + s * (b[1] + b[3]) / 2 };
+  draw();
+}
+const toWorld = (px, py) => [(px - S.view.ox) / S.view.s, -(py - S.view.oy) / S.view.s];
+let raf = 0;
+function draw() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); }
+function paint() {
+  const d = devicePixelRatio || 1, v = S.view;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0d0f13'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  if (!S.sc) return;
+  ctx.setTransform(v.s * d, 0, 0, -v.s * d, v.ox * d, v.oy * d);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1 / v.s; ctx.strokeStyle = '#333c4d'; ctx.stroke(S.paths.furn);
+  ctx.lineWidth = 1.1 / v.s; ctx.strokeStyle = '#8f9ab0'; ctx.stroke(S.paths.bg);
+  const rect = (s) => { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a); ctx.beginPath(); ctx.rect(-s.w / 2, -s.h / 2, s.w, s.h); ctx.restore(); };
+  for (const s of S.ghosts || []) { rect(s); ctx.setLineDash([4 / v.s, 3 / v.s]); ctx.lineWidth = 1.2 / v.s; ctx.strokeStyle = '#ff6b6b'; ctx.stroke(); ctx.setLineDash([]); }
+  for (const s of S.seats) {
+    rect(s); ctx.fillStyle = s === S.hover ? '#ffe46b' : '#fff3a0'; ctx.fill();
+    ctx.lineWidth = (s.src === 'added' ? 2 : 1) / v.s; ctx.strokeStyle = s.src === 'added' ? '#5ecf8d' : '#6b5d1c'; ctx.stroke();
+  }
+  // screen-space text
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  if ($('labelsCk').checked && v.s > 0.35) {
+    ctx.fillStyle = '#78aaff'; ctx.font = '9px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const l of S.sc.labels) ctx.fillText(l.text, l.x * v.s + v.ox, -l.y * v.s + v.oy);
+  }
+  const minPx = Math.min(...S.seats.map(s => Math.min(s.w, s.h))) * v.s;
+  if (S.seats.length && minPx > 11) {
+    const fs = Math.max(8, Math.min(14, minPx * 0.45));
+    ctx.fillStyle = '#131313'; ctx.font = '700 ' + fs + 'px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const s of S.seats) ctx.fillText(s.num, s.x * v.s + v.ox, -s.y * v.s + v.oy + 0.5);
+  }
+}
+let down = null;
+cvs.addEventListener('pointerdown', e => { down = { x: e.offsetX, y: e.offsetY, ox: S.view.ox, oy: S.view.oy, moved: false }; cvs.setPointerCapture(e.pointerId); });
+cvs.addEventListener('pointermove', e => {
+  if (down) {
+    const dx = e.offsetX - down.x, dy = e.offsetY - down.y;
+    if (!down.moved && Math.hypot(dx, dy) > 4) { down.moved = true; cvs.classList.add('drag'); }
+    if (down.moved) { S.view.ox = down.ox + dx; S.view.oy = down.oy + dy; draw(); }
+  } else if (S.sc && S.mode === 'select') {
+    const [x, y] = toWorld(e.offsetX, e.offsetY), h = hitSeat(S.seats, x, y);
+    if (h !== S.hover) { S.hover = h; draw(); }
+  }
+});
+cvs.addEventListener('pointerup', e => {
+  if (down && !down.moved) { const [x, y] = toWorld(e.offsetX, e.offsetY); clickAt(x, y); }
+  down = null; cvs.classList.remove('drag');
+});
+cvs.addEventListener('wheel', e => {
+  e.preventDefault(); if (!S.sc) return;
+  const f = Math.exp(-e.deltaY * 0.0015), [x, y] = toWorld(e.offsetX, e.offsetY);
+  S.view.s *= f; S.view.ox = e.offsetX - x * S.view.s; S.view.oy = e.offsetY + y * S.view.s; draw();
+}, { passive: false });
+
+/* ---------- export ---------- */
+function exportVSDX() {
+  if (!S.seats.length) return;
+  const name = ($('floorName').value || 'Floor').trim();
+  const parts = SM.vsdxParts(S.sc, S.seats, { sheet: $('sheet').value, labels: $('labelsCk').checked, pageName: name });
+  const blob = new Blob([SM.zip(parts)], { type: 'application/vnd.ms-visio.drawing' });
+  const a = document.createElement('a');
+  const base = (S.file ? S.file.name.replace(/\.dxf$/i, '') : name).replace(/[^\w\-. ]+/g, '').trim() || 'SEATS';
+  a.href = URL.createObjectURL(blob); a.download = base + '-SEATING.vsdx';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---------- wiring ---------- */
+function setMode(m) {
+  S.mode = m;
+  for (const b of $('modeSeg').children) b.classList.toggle('on', b.dataset.v === m);
+  cvs.classList.toggle('add', m !== 'select');
+  $('rotBtn').disabled = m !== 'desk';
+  $('hint').textContent = m === 'select' ? 'CLICK A SEAT TO REMOVE OR RESTORE IT · DRAG TO PAN · SCROLL TO ZOOM'
+    : m === 'desk' ? 'CLICK TO PLACE A DESK SEAT · R ROTATES · ESC TO FINISH' : 'CLICK TO PLACE A CHAIR SEAT · ESC TO FINISH';
+  S.hover = null; draw();
+}
+$('modeSeg').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.v); };
+$('rotBtn').onclick = () => { S.rot = !S.rot; $('rotBtn').classList.toggle('on', S.rot); };
+$('fitBtn').onclick = fit;
+$('undoBtn').onclick = undo;
+$('newBtn').onclick = () => reset(true);
+$('loadBtn').onclick = () => $('loadFile').click();
+$('loadFile').onchange = e => { loadFile(e.target.files[0]); e.target.value = ''; };
+$('btnVSDX').onclick = exportVSDX;
+$('looseCk').onchange = renumber;
+$('startNum').oninput = renumber;
+$('sheet').onchange = report;
+$('labelsCk').onchange = draw;
+$('blkMore').onclick = () => { S.showAll = true; renderBlocks(); };
+const view = $('view');
+['dragenter', 'dragover'].forEach(t => view.addEventListener(t, e => { e.preventDefault(); $('drop').classList.add('over'); $('drop').hidden = false; }));
+['dragleave', 'drop'].forEach(t => view.addEventListener(t, e => { e.preventDefault(); $('drop').classList.remove('over'); if (S.sc) $('drop').hidden = true; }));
+view.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  else if (e.key === 'Escape') setMode('select');
+  else if (e.key.toLowerCase() === 'r' && S.mode === 'desk') $('rotBtn').click();
+  else if (e.key.toLowerCase() === 'f') fit();
+});
+(() => { const sp = $('split'); let on = false;
+  sp.onpointerdown = e => { on = true; sp.classList.add('on'); sp.setPointerCapture(e.pointerId); };
+  sp.onpointermove = e => { if (!on) return; const w = Math.min(640, Math.max(300, innerWidth - e.clientX - 3)); document.querySelector('.shell').style.setProperty('--paneW', w + 'px'); resize(); };
+  sp.onpointerup = () => { on = false; sp.classList.remove('on'); };
+})();
+new ResizeObserver(resize).observe(view);
+setMode('select');
+</script>
+</body></html>

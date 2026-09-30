@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEATMAKER</title>
+<style>
+:root{--bg:#0d0f13;--panel:#151922;--panel2:#1b2130;--line:#2a3242;--ink:#e7ecf5;--mute:#7d8798;
+ --amber:#f5a524;--blue:#78aaff;--green:#5ecf8d;--red:#ff6b6b;--seat:#fff3a0;--mono:'DM Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:12px/1.5 var(--mono);letter-spacing:.02em;
+ overflow:hidden;height:100vh;display:flex;flex-direction:column}
+button,select,input{font:inherit;color:inherit}
+header{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{margin:0;font-size:15px;letter-spacing:.22em;font-weight:700}
+header .build{color:var(--mute);font-size:9px;letter-spacing:.14em}
+header .brand{margin-left:8px;flex:0 0 auto;line-height:0}
+header .job{margin-left:6px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:5px 9px;width:190px}
+.spacer{flex:1}
+.tools .out{font-size:13px;font-weight:700;letter-spacing:.18em;color:var(--mute);margin-right:2px}
+.btn.big{padding:8px 16px;font-size:11px;letter-spacing:.1em;font-weight:700}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:6px 12px;cursor:pointer;letter-spacing:.1em;font-size:10px}
+.btn:hover{border-color:var(--mute)}
+.btn.on{background:var(--amber);border-color:var(--amber);color:#131313;font-weight:700}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:disabled:hover{border-color:var(--line)}
+.btn.sm{padding:3px 8px;font-size:9px}
+.shell{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 6px var(--paneW,400px);position:relative}
+#split{cursor:col-resize;background:var(--line);opacity:.55;transition:opacity .15s}
+#split:hover,#split.on{opacity:1;background:var(--amber)}
+.stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.tools{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);align-items:center;flex-wrap:wrap}
+.tools .hint{color:var(--mute);font-size:9.5px;letter-spacing:.08em;margin-left:8px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;white-space:nowrap;background:transparent;border:0;padding:6px 12px;cursor:pointer;font-size:9.5px;letter-spacing:.08em;color:var(--mute)}
+.seg button.on{background:var(--amber);color:#131313;font-weight:700}
+.seg button:disabled{opacity:.35;cursor:default}
+#view{flex:1;min-height:0;position:relative}
+#view canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#view canvas.drag{cursor:grabbing}
+#view canvas.add{cursor:crosshair}
+#drop{position:absolute;inset:18px;border:1px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mute);text-align:center;padding:24px}
+#drop.over{border-color:var(--amber);color:var(--amber)}
+#drop .big{font-size:14px;letter-spacing:.2em;color:var(--ink)}
+#drop .small{font-size:10px;letter-spacing:.08em;max-width:460px;line-height:1.6}
+#busy{position:absolute;inset:0;background:rgba(6,8,12,.72);display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.2em;color:var(--amber)}
+#busy[hidden],#drop[hidden]{display:none}
+.stagefoot{display:flex;gap:10px;padding:8px 16px;border-top:1px solid var(--line);font-size:9px;color:var(--mute);letter-spacing:.1em;flex-wrap:wrap;min-height:35px}
+.chip{border:1px solid var(--line);border-radius:20px;padding:3px 10px;background:var(--panel)}
+.chip.ok{border-color:rgba(94,207,141,.5);color:var(--green)}
+.chip.amb{border-color:rgba(245,165,36,.5);color:var(--amber)}
+.chip.bad{border-color:rgba(255,107,107,.55);color:var(--red)}
+.side{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.side .hd{padding:12px 16px 9px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+.side .hd .k{font-size:11px;letter-spacing:.16em;color:var(--amber)}
+.side .hd .s{color:var(--mute);font-size:10px;margin-top:2px;line-height:1.45;word-break:break-all}
+.side .body{padding:12px 16px;overflow:auto;flex:1 1 auto;min-height:0}
+.grp{margin-bottom:16px}
+.grp>.t{font-size:9px;letter-spacing:.16em;color:var(--mute);margin-bottom:6px}
+.row{display:flex;gap:8px;margin-bottom:8px}
+.row>*{flex:1;min-width:0}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mute);letter-spacing:.08em}
+label.f input,label.f select{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font-size:11px;width:100%}
+label.f .mm{color:var(--mute);font-size:9px}
+label.ck{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--ink);letter-spacing:.06em;cursor:pointer}
+label.ck input{accent-color:var(--amber)}
+table.spec{width:100%;border-collapse:collapse;font-size:11px}
+table.spec td{padding:5px 8px;border-bottom:1px solid var(--line)}
+table.spec td:last-child{text-align:right;color:var(--ink)}
+table.spec td:first-child{color:var(--mute);font-size:10px;letter-spacing:.06em}
+table.spec tr:last-child td{border-bottom:0}
+.blk{border:1px solid var(--line);border-radius:7px;padding:7px 9px;margin-bottom:6px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center}
+.blk.act{border-color:rgba(245,165,36,.45);background:rgba(245,165,36,.04)}
+.blk .nm{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .ds{font-size:9px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;grid-column:1}
+.blk select{grid-row:1/3;grid-column:2;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:10px}
+.blk .ct{color:var(--amber)}
+.msg{font-size:10px;line-height:1.55;border:1px solid;border-radius:6px;padding:7px 9px;margin-bottom:6px;letter-spacing:.03em}
+.msg.g{border-color:rgba(94,207,141,.38);color:var(--green);background:rgba(94,207,141,.06)}
+.msg.w{border-color:rgba(245,165,36,.38);color:var(--amber);background:rgba(245,165,36,.06)}
+.msg.e{border-color:rgba(255,107,107,.45);color:var(--red);background:rgba(255,107,107,.07)}
+.note{font-size:10px;color:var(--mute);line-height:1.5;border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-top:10px}
+.more{background:none;border:0;color:var(--blue);cursor:pointer;font-size:9.5px;letter-spacing:.08em;padding:2px 0}
+</style></head>
+<body>
+<header>
+  <div><h1>SEATMAKER</h1><div class="build" id="buildTag"></div></div>
+  <input class="job" id="floorName" placeholder="FLOOR NAME" title="Page name in Visio">
+  <span style="width:14px"></span>
+  <button class="btn" id="loadBtn">LOAD DXF</button>
+  <input id="loadFile" type="file" accept=".dxf" hidden>
+  <button class="btn" id="newBtn">NEW</button>
+  <button class="btn" id="undoBtn" title="Ctrl+Z" disabled>UNDO</button>
+  <div class="spacer"></div>
+{{BRAND}}
+</header>
+<div class="shell">
+  <section class="stage">
+    <div class="tools">
+      <span class="out">OUTPUT</span>
+      <button class="btn big" id="btnVSDX" disabled>VSDX</button>
+    </div>
+    <div class="tools">
+      <div class="seg" id="modeSeg">
+        <button data-v="select" class="on">SELECT</button>
+        <button data-v="desk">ADD DESK</button>
+        <button data-v="chair">ADD CHAIR</button>
+      </div>
+      <button class="btn" id="rotBtn" title="R">ROTATE 90</button>
+      <button class="btn" id="fitBtn" title="F">FIT</button>
+      <span class="hint" id="hint">CLICK A SEAT TO REMOVE OR RESTORE IT &middot; DRAG TO PAN &middot; SCROLL TO ZOOM</span>
+    </div>
+    <div id="view">
+      <canvas id="cvs"></canvas>
+      <div id="drop">
+        <div class="big">DROP A DXF HERE</div>
+        <div class="small">OR USE LOAD DXF. SAVE THE DRAWING FROM AUTOCAD AS AN AUTOCAD 2013 DXF, WITH NO FLATTEN, EXPLODE OR PURGE FIRST.</div>
+        <div class="small">THE DRAWING IS READ ON THIS COMPUTER. NOTHING IS UPLOADED.</div>
+      </div>
+      <div id="busy" hidden>READING DRAWING</div>
+    </div>
+    <div class="stagefoot" id="foot"></div>
+  </section>
+  <div id="split" title="Drag to resize the pane"></div>
+  <aside class="side">
+    <div class="hd"><div style="flex:1"><div class="k" id="selK">NO DRAWING</div><div class="s" id="selS">Load a DXF to find the seats.</div></div></div>
+    <div class="body">
+      <div class="grp">
+        <div class="t">SEAT BLOCKS</div>
+        <div id="blkList"><div class="note">Blocks that can be seats appear here after a drawing loads. LaCour 60x33 benching makes two seats per block. CAP task chairs make one seat each.</div></div>
+        <button class="more" id="blkMore" hidden>SHOW ALL FURNITURE BLOCKS</button>
+      </div>
+      <div class="grp">
+        <div class="t">LOOSE DESK RUNS</div>
+        <label class="ck"><input type="checkbox" id="looseCk" checked> <span id="looseTxt">EXPLODED DESK LINEWORK MADE INTO SEATS</span></label>
+      </div>
+      <div class="grp">
+        <div class="t">ADD DESK SIZE</div>
+        <div class="row">
+          <label class="f">WIDTH<input type="number" id="deskW" value="60" step="1" min="12"><span class="mm">INCHES</span></label>
+          <label class="f">DEPTH<input type="number" id="deskD" value="30" step="1" min="12"><span class="mm">INCHES</span></label>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="t">VISIO PAGE</div>
+        <div class="row">
+          <label class="f">SHEET<select id="sheet"><option value="ANSI C">ANSI C 22 x 17</option><option value="ARCH D">ARCH D 36 x 24</option><option value="TABLOID">TABLOID 17 x 11</option></select><span class="mm" id="scaleTxt">SCALE PICKED TO FIT</span></label>
+          <label class="f">FIRST SEAT NUMBER<input type="number" id="startNum" value="1" step="1" min="0"><span class="mm">OFFICES FIRST, THEN ROWS</span></label>
+        </div>
+        <label class="ck"><input type="checkbox" id="labelsCk" checked> ROOM NAMES ON THE PLAN</label>
+      </div>
+      <div class="grp">
+        <div class="t">DRAWING</div>
+        <table class="spec" id="spec"><tr><td>FILE</td><td>&mdash;</td></tr></table>
+      </div>
+      <div class="grp" id="msgs"></div>
+      <div class="note">The Visio file has two layers. FLOOR PLAN is locked so the walls can't be moved. SEATS holds one shape per seat. Double-click a seat in Visio to change its number, and recolor seats by department.</div>
+    </div>
+  </aside>
+</div>
+<script>
+{{ENGINE}}
+</script>
+<script>
+const BUILD = "{{BUILD}}";
+document.getElementById('buildTag').textContent = "BUILD " + BUILD;
+const $ = id => document.getElementById(id);
+const S = { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
+  removed: new Set(), added: [], edits: [], seats: [], mode: 'select', rot: false, showAll: false, hover: null,
+  view: { s: 1, ox: 0, oy: 0 }, paths: null };
+const key = s => Math.round(s.x * 10) + ',' + Math.round(s.y * 10);
+const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+/* ---------- load ---------- */
+async function loadFile(file) {
+  if (!file) return;
+  if (!/\.dxf$/i.test(file.name)) { msg([['e', 'SEATMAKER reads DXF files. In AutoCAD use SAVEAS and pick AutoCAD 2013 DXF.']]); return; }
+  $('busy').hidden = false; $('busy').textContent = 'READING DRAWING'; await frame();
+  try {
+    const buf = await file.arrayBuffer();
+    const text = new TextDecoder('windows-1252').decode(buf);
+    $('busy').textContent = 'PARSING ' + (buf.byteLength / 1e6).toFixed(1) + ' MB'; await frame();
+    const dxf = SM.parseDXF(text);
+    $('busy').textContent = 'FLATTENING BLOCKS AND CLIPS'; await frame();
+    const flat = SM.flatten(dxf);
+    const sc = SM.scene(flat);
+    reset(false);
+    Object.assign(S, { file, dxf, flat, sc });
+    S.cands = SM.candidates(dxf, flat);
+    S.modes = new Map(S.cands.map(c => [c.name, c.mode]));
+    if (!$('floorName').value) $('floorName').value = file.name.replace(/\.dxf$/i, '');
+    buildPaths();
+    derive();
+    renderBlocks();
+    $('drop').hidden = true;
+    fit();
+  } catch (err) {
+    console.error(err);
+    msg([['e', 'Could not read this file: ' + err.message]]);
+  } finally { $('busy').hidden = true; }
+}
+function reset(clearName = true) {
+  Object.assign(S, { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
+    removed: new Set(), added: [], edits: [], seats: [], hover: null, paths: null });
+  if (clearName) $('floorName').value = '';
+  $('drop').hidden = false; $('blkList').innerHTML = '<div class="note">Blocks that can be seats appear here after a drawing loads.</div>';
+  $('blkMore').hidden = true; $('msgs').innerHTML = ''; $('spec').innerHTML = '<tr><td>FILE</td><td>&mdash;</td></tr>';
+  $('selK').textContent = 'NO DRAWING'; $('selS').textContent = 'Load a DXF to find the seats.';
+  $('btnVSDX').disabled = true; $('undoBtn').disabled = true; $('foot').innerHTML = '';
+  draw();
+}
+
+/* ---------- seats ---------- */
+function derive() {
+  if (!S.flat) return;
+  const r = SM.seatsFromBlocks(S.dxf, S.flat, S.modes);
+  S.auto = r.seats; S.deskIns = r.deskIns;
+  S.loose = SM.looseRuns(S.flat, S.deskIns);
+  renumber();
+}
+function renumber() {
+  const autoAll = S.auto.concat($('looseCk').checked ? S.loose.runs.flatMap(r => r.seats) : []);
+  const live = autoAll.filter(s => !S.removed.has(key(s))).concat(S.added);
+  S.seats = SM.numberSeats(live, parseInt($('startNum').value, 10) || 0);
+  S.ghosts = autoAll.filter(s => S.removed.has(key(s)));
+  report(); draw();
+}
+function pushEdit(e) { S.edits.push(e); $('undoBtn').disabled = false; }
+function undo() {
+  const e = S.edits.pop(); if (!e) return;
+  if (e.t === 'rm') S.removed.delete(e.k);
+  else if (e.t === 'restore') S.removed.add(e.k);
+  else if (e.t === 'add') S.added = S.added.filter(s => s !== e.s);
+  else if (e.t === 'del') S.added.push(e.s);
+  $('undoBtn').disabled = !S.edits.length; renumber();
+}
+function hitSeat(list, x, y) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i], c = Math.cos(-s.a), n = Math.sin(-s.a), dx = x - s.x, dy = y - s.y;
+    const lx = dx * c - dy * n, ly = dx * n + dy * c;
+    if (Math.abs(lx) <= s.w / 2 && Math.abs(ly) <= s.h / 2) return s;
+  }
+  return null;
+}
+function clickAt(x, y) {
+  if (!S.flat) return;
+  if (S.mode === 'select') {
+    const g = hitSeat(S.ghosts, x, y);
+    const s = hitSeat(S.seats, x, y);
+    if (s && s.src === 'added') { S.added = S.added.filter(a => a !== s); pushEdit({ t: 'del', s }); }
+    else if (s) { const k = key(s); S.removed.add(k); pushEdit({ t: 'rm', k }); }
+    else if (g) { const k = key(g); S.removed.delete(k); pushEdit({ t: 'restore', k }); }
+    else return;
+  } else {
+    let w, h, kind;
+    if (S.mode === 'chair') { w = h = 30; kind = 'O'; }
+    else { w = +$('deskW').value || 60; h = +$('deskD').value || 30; kind = 'B'; if (S.rot) [w, h] = [h, w]; }
+    const s = { x, y, w, h, a: 0, kind, row: y, src: 'added' };
+    S.added.push(s); pushEdit({ t: 'add', s });
+  }
+  renumber();
+}
+
+/* ---------- side pane ---------- */
+const fixText = t => { try { return /[\u00c2-\u00f4][\u0080-\u00bf\u2018-\u203a\u20ac\ufffd]/.test(t) ? decodeURIComponent(escape(t)) : t; } catch (e) { return t.replace(/\u00e2\u20ac\ufffd?/g, '"'); } };
+const MODE_TXT = { OFF: 'NOT A SEAT', CHAIR: '1 SEAT (CHAIR)', DESK: '1 SEAT (DESK)', PAIR: '2 SEATS (BACK TO BACK)' };
+function renderBlocks() {
+  const list = S.showAll ? S.cands : S.cands.filter(c => c.mode !== 'OFF' || S.modes.get(c.name) !== 'OFF' || c.cappd);
+  const box = $('blkList'); box.innerHTML = '';
+  if (!list.length) box.innerHTML = '<div class="note">No furniture blocks found. Use ADD DESK and ADD CHAIR to place seats by hand.</div>';
+  for (const c of list) {
+    const m = S.modes.get(c.name) || 'OFF';
+    const d = document.createElement('div'); d.className = 'blk' + (m !== 'OFF' ? ' act' : '');
+    d.innerHTML = '<div class="nm" title="' + c.name.replace(/"/g, '&quot;') + '"><span class="ct">' + c.count + '&times;</span> ' + c.name.replace(/</g, '&lt;') + '</div>' +
+      '<div class="ds">' + (c.cappd ? fixText(c.cappd).replace(/</g, '&lt;') : c.layer.replace(/</g, '&lt;')) + '</div>';
+    const sel = document.createElement('select');
+    for (const k of Object.keys(MODE_TXT)) { const o = document.createElement('option'); o.value = k; o.textContent = MODE_TXT[k]; if (k === m) o.selected = true; sel.appendChild(o); }
+    sel.onchange = () => { S.modes.set(c.name, sel.value); d.className = 'blk' + (sel.value !== 'OFF' ? ' act' : ''); derive(); };
+    d.appendChild(sel); box.appendChild(d);
+  }
+  const hiddenN = S.cands.length - list.length;
+  $('blkMore').hidden = S.showAll || hiddenN <= 0;
+  $('blkMore').textContent = 'SHOW ALL FURNITURE BLOCKS (' + hiddenN + ' MORE)';
+}
+function msg(list) { $('msgs').innerHTML = list.map(([k, t]) => '<div class="msg ' + k + '">' + t + '</div>').join(''); }
+function report() {
+  if (!S.flat) return;
+  const seats = S.seats, nB = seats.filter(s => s.kind === 'B').length, nO = seats.length - nB;
+  const lr = S.loose.runs, ls = lr.reduce((a, r) => a + r.seats.length, 0);
+  const sc = SM.pickScale(S.sc.box, $('sheet').value);
+  $('selK').textContent = seats.length + ' SEATS';
+  $('selS').textContent = S.file.name;
+  $('looseTxt').textContent = lr.length ? 'INCLUDE ' + lr.length + ' EXPLODED RUN' + (lr.length > 1 ? 'S' : '') + ' (' + ls + ' SEATS)' : 'NONE FOUND IN THIS DRAWING';
+  $('looseCk').disabled = !lr.length;
+  $('scaleTxt').textContent = 'SCALE ' + sc.label;
+  $('spec').innerHTML = [['FILE', S.file.name], ['SIZE', (S.file.size / 1e6).toFixed(1) + ' MB'], ['PLAN LINES', S.sc.bg.length.toLocaleString()],
+    ['ROOM NAMES', S.sc.labels.length], ['CLIP BOUNDARIES', S.flat.clipCount], ['FLOOR IN ONE BLOCK', S.flat.wrapped ? 'YES, OPENED' : 'NO']]
+    .map(([a, b]) => '<tr><td>' + a + '</td><td>' + String(b).replace(/</g, '&lt;') + '</td></tr>').join('');
+  const m = [];
+  m.push(['g', seats.length + ' seats: ' + nB + ' at desks, ' + nO + ' office chairs.']);
+  if (S.flat.clipCount) m.push(['g', S.flat.clipCount + ' clipped block' + (S.flat.clipCount > 1 ? 's' : '') + ' (XCLIP) trimmed to what AutoCAD shows.']);
+  if (S.loose.skipped.length) m.push(['w', S.loose.skipped.length + ' loose desk-layer piece' + (S.loose.skipped.length > 1 ? 's' : '') + ' not counted (' +
+    S.loose.skipped.map(k => Math.round(k.w) + 'x' + Math.round(k.h)).join(', ') + '). They have no desk split, so they read as end tables or storage. Use ADD DESK if one is a seat.']);
+  if (!seats.length) m.push(['w', 'No seats found. Set a block to a seat type above, or place seats with ADD DESK and ADD CHAIR.']);
+  msg(m);
+  $('foot').innerHTML = ['<span class="chip ok">' + seats.length + ' SEATS</span>', '<span class="chip">' + nB + ' DESKS</span>', '<span class="chip">' + nO + ' CHAIRS</span>',
+    S.removed.size ? '<span class="chip bad">' + S.removed.size + ' REMOVED</span>' : '', S.added.length ? '<span class="chip amb">' + S.added.length + ' ADDED</span>' : '',
+    '<span class="chip">' + $('sheet').value + ' &middot; ' + sc.label + '</span>'].join('');
+  $('btnVSDX').disabled = !seats.length; $('btnVSDX').classList.toggle('on', !!seats.length);
+}
+
+/* ---------- canvas ---------- */
+const cvs = $('cvs'), ctx = cvs.getContext('2d');
+function buildPaths() {
+  const mk = list => { const p = new Path2D(); for (const pts of list) { p.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) p.lineTo(pts[i][0], pts[i][1]); } return p; };
+  S.paths = { bg: mk(S.sc.bg), furn: mk(S.sc.furn) };
+}
+function resize() {
+  const r = cvs.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cvs.width = Math.max(1, r.width * d); cvs.height = Math.max(1, r.height * d); draw();
+}
+function fit() {
+  if (!S.sc) return;
+  const r = cvs.getBoundingClientRect(), b = S.sc.box, pad = 30;
+  const s = Math.min((r.width - 2 * pad) / (b[2] - b[0]), (r.height - 2 * pad) / (b[3] - b[1]));
+  S.view = { s, ox: r.width / 2 - s * (b[0] + b[2]) / 2, oy: r.height / 2 + s * (b[1] + b[3]) / 2 };
+  draw();
+}
+const toWorld = (px, py) => [(px - S.view.ox) / S.view.s, -(py - S.view.oy) / S.view.s];
+let raf = 0;
+function draw() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); }
+function paint() {
+  const d = devicePixelRatio || 1, v = S.view;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0d0f13'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  if (!S.sc) return;
+  ctx.setTransform(v.s * d, 0, 0, -v.s * d, v.ox * d, v.oy * d);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1 / v.s; ctx.strokeStyle = '#333c4d'; ctx.stroke(S.paths.furn);
+  ctx.lineWidth = 1.1 / v.s; ctx.strokeStyle = '#8f9ab0'; ctx.stroke(S.paths.bg);
+  const rect = (s) => { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a); ctx.beginPath(); ctx.rect(-s.w / 2, -s.h / 2, s.w, s.h); ctx.restore(); };
+  for (const s of S.ghosts || []) { rect(s); ctx.setLineDash([4 / v.s, 3 / v.s]); ctx.lineWidth = 1.2 / v.s; ctx.strokeStyle = '#ff6b6b'; ctx.stroke(); ctx.setLineDash([]); }
+  for (const s of S.seats) {
+    rect(s); ctx.fillStyle = s === S.hover ? '#ffe46b' : '#fff3a0'; ctx.fill();
+    ctx.lineWidth = (s.src === 'added' ? 2 : 1) / v.s; ctx.strokeStyle = s.src === 'added' ? '#5ecf8d' : '#6b5d1c'; ctx.stroke();
+  }
+  // screen-space text
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  if ($('labelsCk').checked && v.s > 0.35) {
+    ctx.fillStyle = '#78aaff'; ctx.font = '9px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const l of S.sc.labels) ctx.fillText(l.text, l.x * v.s + v.ox, -l.y * v.s + v.oy);
+  }
+  const minPx = Math.min(...S.seats.map(s => Math.min(s.w, s.h))) * v.s;
+  if (S.seats.length && minPx > 11) {
+    const fs = Math.max(8, Math.min(14, minPx * 0.45));
+    ctx.fillStyle = '#131313'; ctx.font = '700 ' + fs + 'px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const s of S.seats) ctx.fillText(s.num, s.x * v.s + v.ox, -s.y * v.s + v.oy + 0.5);
+  }
+}
+let down = null;
+cvs.addEventListener('pointerdown', e => { down = { x: e.offsetX, y: e.offsetY, ox: S.view.ox, oy: S.view.oy, moved: false }; cvs.setPointerCapture(e.pointerId); });
+cvs.addEventListener('pointermove', e => {
+  if (down) {
+    const dx = e.offsetX - down.x, dy = e.offsetY - down.y;
+    if (!down.moved && Math.hypot(dx, dy) > 4) { down.moved = true; cvs.classList.add('drag'); }
+    if (down.moved) { S.view.ox = down.ox + dx; S.view.oy = down.oy + dy; draw(); }
+  } else if (S.sc && S.mode === 'select') {
+    const [x, y] = toWorld(e.offsetX, e.offsetY), h = hitSeat(S.seats, x, y);
+    if (h !== S.hover) { S.hover = h; draw(); }
+  }
+});
+cvs.addEventListener('pointerup', e => {
+  if (down && !down.moved) { const [x, y] = toWorld(e.offsetX, e.offsetY); clickAt(x, y); }
+  down = null; cvs.classList.remove('drag');
+});
+cvs.addEventListener('wheel', e => {
+  e.preventDefault(); if (!S.sc) return;
+  const f = Math.exp(-e.deltaY * 0.0015), [x, y] = toWorld(e.offsetX, e.offsetY);
+  S.view.s *= f; S.view.ox = e.offsetX - x * S.view.s; S.view.oy = e.offsetY + y * S.view.s; draw();
+}, { passive: false });
+
+/* ---------- export ---------- */
+function exportVSDX() {
+  if (!S.seats.length) return;
+  const name = ($('floorName').value || 'Floor').trim();
+  const parts = SM.vsdxParts(S.sc, S.seats, { sheet: $('sheet').value, labels: $('labelsCk').checked, pageName: name });
+  const blob = new Blob([SM.zip(parts)], { type: 'application/vnd.ms-visio.drawing' });
+  const a = document.createElement('a');
+  const base = (S.file ? S.file.name.replace(/\.dxf$/i, '') : name).replace(/[^\w\-. ]+/g, '').trim() || 'SEATS';
+  a.href = URL.createObjectURL(blob); a.download = base + '-SEATING.vsdx';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---------- wiring ---------- */
+function setMode(m) {
+  S.mode = m;
+  for (const b of $('modeSeg').children) b.classList.toggle('on', b.dataset.v === m);
+  cvs.classList.toggle('add', m !== 'select');
+  $('rotBtn').disabled = m !== 'desk';
+  $('hint').textContent = m === 'select' ? 'CLICK A SEAT TO REMOVE OR RESTORE IT · DRAG TO PAN · SCROLL TO ZOOM'
+    : m === 'desk' ? 'CLICK TO PLACE A DESK SEAT · R ROTATES · ESC TO FINISH' : 'CLICK TO PLACE A CHAIR SEAT · ESC TO FINISH';
+  S.hover = null; draw();
+}
+$('modeSeg').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.v); };
+$('rotBtn').onclick = () => { S.rot = !S.rot; $('rotBtn').classList.toggle('on', S.rot); };
+$('fitBtn').onclick = fit;
+$('undoBtn').onclick = undo;
+$('newBtn').onclick = () => reset(true);
+$('loadBtn').onclick = () => $('loadFile').click();
+$('loadFile').onchange = e => { loadFile(e.target.files[0]); e.target.value = ''; };
+$('btnVSDX').onclick = exportVSDX;
+$('looseCk').onchange = renumber;
+$('startNum').oninput = renumber;
+$('sheet').onchange = report;
+$('labelsCk').onchange = draw;
+$('blkMore').onclick = () => { S.showAll = true; renderBlocks(); };
+const view = $('view');
+['dragenter', 'dragover'].forEach(t => view.addEventListener(t, e => { e.preventDefault(); $('drop').classList.add('over'); $('drop').hidden = false; }));
+['dragleave', 'drop'].forEach(t => view.addEventListener(t, e => { e.preventDefault(); $('drop').classList.remove('over'); if (S.sc) $('drop').hidden = true; }));
+view.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  else if (e.key === 'Escape') setMode('select');
+  else if (e.key.toLowerCase() === 'r' && S.mode === 'desk') $('rotBtn').click();
+  else if (e.key.toLowerCase() === 'f') fit();
+});
+(() => { const sp = $('split'); let on = false;
+  sp.onpointerdown = e => { on = true; sp.classList.add('on'); sp.setPointerCapture(e.pointerId); };
+  sp.onpointermove = e => { if (!on) return; const w = Math.min(640, Math.max(300, innerWidth - e.clientX - 3)); document.querySelector('.shell').style.setProperty('--paneW', w + 'px'); resize(); };
+  sp.onpointerup = () => { on = false; sp.classList.remove('on'); };
+})();
+new ResizeObserver(resize).observe(view);
+setMode('select');
+</script>
+</body></html>
