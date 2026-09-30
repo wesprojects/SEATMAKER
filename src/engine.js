@@ -338,10 +338,53 @@ function blockBox(dxf, name, memo = new Map(), depth = 0) {
 /* ---------- seat modes ---------- */
 // OFF, CHAIR (one 30x30 seat at the block's center), DESK (one seat = the
 // block footprint), PAIR (back-to-back: footprint split in two across its depth)
-function defaultMode(name, cappd) {
-  if (/^LaCOUR\s*-\s*60L\s*x\s*33D/i.test(name)) return 'PAIR';
+// Any maker's benching or desk block: recognized by what it is (CAP description
+// or block name), and made 1 or 2 seats by its shape, not by product line.
+const DESK_RE = /bench|spanner|desk|work ?station|work ?surface/i;
+const NOT_DESK_RE = /return|pedestal|\bped\b|file|storage|credenza|hutch|screen|tray|power|modesty|\bleg|base\b|top for|end panel|cabinet|shelf|drawer|keyboard|monitor|grommet|bracket|lamp|light|chair|stool|lock|glide|support|cable|wire|trough/i;
+// 2D segments of a block, recursively, in block space
+function blockSegs(dxf, name, memo, depth = 0) {
+  if (memo.has(name)) return memo.get(name);
+  memo.set(name, []);
+  const b = dxf.blocks.get(name), out = [];
+  if (b && depth < 12) for (let i = 0; i < b.ents.length; i++) {
+    const r = b.ents[i]; if (!r.full) continue;
+    if (r.t === 'INSERT') {
+      const bn = getv(r, 2, '').trim(), bd = dxf.blocks.get(bn); if (!bd) continue;
+      const M = insertMatrix(r, bd.base);
+      for (const [a, c] of blockSegs(dxf, bn, memo, depth + 1)) { const p = ap(M, a[0], a[1], 0), q = ap(M, c[0], c[1], 0); out.push([[p[0], p[1]], [q[0], q[1]]]); }
+    } else if (['LINE', 'LWPOLYLINE'].includes(r.t)) {
+      for (const pl of entPolys(r)) for (let k = 0; k < pl.length - 1; k++) out.push([[pl[k][0], pl[k][1]], [pl[k + 1][0], pl[k + 1][1]]]);
+    }
+  }
+  memo.set(name, out); return out;
+}
+// Back-to-back benching: a spine line across the middle, with desk depth either side.
+// Returns 'y' (split across Y), 'x' (split across X) or null.
+function spineAxis(dxf, name, bb, memo) {
+  const w = bb[2] - bb[0], h = bb[3] - bb[1], xm = (bb[0] + bb[2]) / 2, ym = (bb[1] + bb[3]) / 2;
+  const segs = blockSegs(dxf, name, memo);
+  const deskDepth = d => d >= 20 && d <= 40;
+  if (deskDepth(h / 2) && w >= 24) {
+    let span = 0;
+    for (const [a, c] of segs) if (Math.abs(a[1] - c[1]) < 0.5 && Math.abs((a[1] + c[1]) / 2 - ym) <= 0.08 * h) span = Math.max(span, Math.abs(a[0] - c[0]));
+    if (span >= 0.9 * w) return 'y';
+  }
+  if (deskDepth(w / 2) && h >= 24) {
+    let span = 0;
+    for (const [a, c] of segs) if (Math.abs(a[0] - c[0]) < 0.5 && Math.abs((a[0] + c[0]) / 2 - xm) <= 0.08 * w) span = Math.max(span, Math.abs(a[1] - c[1]));
+    if (span >= 0.9 * h) return 'x';
+  }
+  return null;
+}
+function defaultMode(dxf, name, cappd, memo) {
   if (/task chair/i.test(cappd || '')) return 'CHAIR';
-  return 'OFF';
+  const what = name + ' ' + (cappd || '');
+  if (!DESK_RE.test(what) || NOT_DESK_RE.test(what)) return 'OFF';
+  const bb = blockBox(dxf, name, memo.box);
+  if (!bb) return 'OFF';                       // 3D-solid-only parts can't be placed
+  if (Math.max(bb[2] - bb[0], bb[3] - bb[1]) < 48) return 'OFF';   // small work tables aren't assigned desks
+  return spineAxis(dxf, name, bb, memo.seg) ? 'PAIR' : 'DESK';
 }
 function candidates(dxf, flat) {
   const map = new Map();
@@ -352,7 +395,8 @@ function candidates(dxf, flat) {
   }
   const list = [...map.values()].filter(c =>
     c.cappd || /FURN|DESK|SEAT|CHAIR|WORK|STATION|BENCH/i.test(c.layer + ' ' + c.name));
-  for (const c of list) c.mode = defaultMode(c.name, c.cappd);
+  const memo = { box: new Map(), seg: new Map() };
+  for (const c of list) c.mode = defaultMode(dxf, c.name, c.cappd, memo);
   list.sort((a, b) => (a.mode === 'OFF') - (b.mode === 'OFF') || b.count - a.count || a.name.localeCompare(b.name));
   return list;
 }
@@ -385,7 +429,7 @@ function nearTable(x, y, tables, margin = 20) {
   return false;
 }
 function seatsFromBlocks(dxf, flat, modes) {
-  const memo = new Map(), seats = [], deskIns = new Set();
+  const memo = new Map(), segMemo = new Map(), seats = [], deskIns = new Set();
   const tables = tableFootprints(dxf, flat, memo);
   flat.inserts.forEach((ins, id) => {
     const mode = modes.get(ins.name) || 'OFF'; if (mode === 'OFF') return;
@@ -401,20 +445,33 @@ function seatsFromBlocks(dxf, flat, modes) {
     const w = bb[2] - bb[0], h = bb[3] - bb[1], spine = at(0, (bb[1] + bb[3]) / 2)[1];
     if (mode === 'DESK') {
       const c = at((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2);
-      seats.push({ x: c[0], y: c[1], w, h, a: ang, kind: 'B', row: c[1], src: 'auto' });
+      seats.push({ x: c[0], y: c[1], w, h, a: ang, kind: 'B', row: c[1], src: 'auto', desk: true });
+    } else if (spineAxis(dxf, ins.name, bb, segMemo) === 'x') {
+      const xm = (bb[0] + bb[2]) / 2, c0 = at(xm, (bb[1] + bb[3]) / 2);
+      for (const [xa, xb] of [[bb[0], xm], [xm, bb[2]]]) {
+        const c = at((xa + xb) / 2, (bb[1] + bb[3]) / 2);
+        seats.push({ x: c[0], y: c[1], w: xb - xa, h, a: ang, kind: 'B', row: c0[1], src: 'auto', desk: true });
+      }
     } else {
-      const ym = (bb[1] + bb[3]) / 2, rowY = at(0, 0)[1];
+      const ym = (bb[1] + bb[3]) / 2, rowY = at(0, ym)[1];
       for (const [ya, yb] of [[bb[1], ym], [ym, bb[3]]]) {
         const c = at((bb[0] + bb[2]) / 2, (ya + yb) / 2);
-        seats.push({ x: c[0], y: c[1], w, h: yb - ya, a: ang, kind: 'B', row: rowY, src: 'auto' });
+        seats.push({ x: c[0], y: c[1], w, h: yb - ya, a: ang, kind: 'B', row: rowY, src: 'auto', desk: true });
       }
     }
   });
-  return { seats, deskIns };
+  // A desk with a task chair already at it is one seat, not two: keep the chair.
+  const chairs = seats.filter(s => s.kind === 'O');
+  const kept = seats.filter(s => {
+    if (s.kind !== 'B') return true;
+    const c = Math.cos(-s.a), n = Math.sin(-s.a);
+    return !chairs.some(ch => { const dx = ch.x - s.x, dy = ch.y - s.y, lx = dx * c - dy * n, ly = dx * n + dy * c; return Math.abs(lx) <= s.w / 2 + 30 && Math.abs(ly) <= s.h / 2 + 30; });
+  });
+  return { seats: kept, deskIns };
 }
 // Exploded desk runs: linework on a DESK layer that is not inside a desk block.
 function looseRuns(flat, deskIns) {
-  const pieces = flat.polys.filter(p => /DESK/i.test(p.layer) && !p.anc.some(a => deskIns.has(a)));
+  const pieces = flat.polys.filter(p => /DESK|BENCH/i.test(baseLayer(p.layer)) && !p.anc.some(a => deskIns.has(a)));
   const bbs = pieces.map(p => {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of p.pts) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
@@ -449,9 +506,9 @@ function looseRuns(flat, deskIns) {
 }
 
 /* ---------- plan background ---------- */
-const EXCL = /^(A-FURN|AFU|LACOUR|EDGES|G-IMPT|FRAME|A-ANNO|A-DIM|XREF|C-DETAILS|A-EQPM-IDEN|A-AREA-IDEN|LJ-DWG|A-DOOR-IDEN|DEFPOINTS)/i;
+const EXCL = /^(A-FURN|AFU|EDGES|G-IMPT|FRAME|A-ANNO|A-DIM|XREF|C-DETAILS|A-EQPM-IDEN|A-AREA-IDEN|LJ-DWG|A-DOOR-IDEN|DEFPOINTS)|FURN|DESK|BENCH|CHAIR|SEAT|WORKST/i;
 const baseLayer = l => l.split('$0$').pop();
-const isFurn = l => { const b = baseLayer(l); return /^(A-FURN|AFU|LACOUR|EDGES|G-IMPT)/i.test(b) || b === '0'; };
+const isFurn = l => { const b = baseLayer(l); return /^(A-FURN|AFU|EDGES|G-IMPT)|FURN|DESK|BENCH|CHAIR|SEAT|WORKST/i.test(b) || b === '0'; };
 const keepBg = l => { const b = baseLayer(l); return !EXCL.test(b) && b !== '0'; };
 function pct(arr, p) { const a = Float64Array.from(arr).sort(); return a[Math.min(a.length - 1, Math.max(0, Math.floor(p * (a.length - 1))))]; }
 function planBox(flat) {

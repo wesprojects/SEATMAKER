@@ -37,11 +37,14 @@ Runs in a current desktop browser. Chrome is recommended. It opens from GitHub P
 
 | Source | Seats |
 |---|---|
-| LaCour 60L x 33D benching blocks | 2 per block, back to back |
+| Back-to-back benching block, any manufacturer | 2 per block |
+| Single desk, bench or worksurface block, 48" or longer | 1 per block |
 | CAP blocks described as a task chair | 1 per chair |
 | Task chairs at a meeting or conference table | left out and shown dashed, click to add |
-| Exploded desk linework on a DESK layer, in 60" multiples, 30–35" deep | 1 per 60" |
+| Exploded desk linework on a DESK or BENCH layer, in 60" multiples, 30–35" deep | 1 per 60" |
 | Any other furniture block | set it to CHAIR, DESK or 2 SEATS in the SEAT BLOCKS list |
+
+Desks and benching are recognized by what they are, not by product line: the CAP description or block name says bench, spanner, desk, workstation or worksurface. Returns, pedestals, files, storage, screens, trays and other parts don't count. A block is back to back when it has a spine line across its middle with desk depth (20–40") on each side. A desk with a task chair at it counts once, as the chair.
 
 A chair is at a table when its center is within 20" of a block whose CAP description is a table (meeting, conference, knife edge, round and so on). Coffee and end tables, table bases and tops, and power modules don't count.
 
