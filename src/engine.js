@@ -362,8 +362,31 @@ const normAngle = a => {
   if (a <= -Math.PI / 2 + 1e-6) a += Math.PI;
   return Math.abs(a) < 1e-6 ? 0 : a;
 };
+// Meeting / conference tables from CAP descriptions. Task chairs pulled up to
+// one are meeting seats, not assignable seats.
+const TABLE_RE = /\btable\b/i, NOT_TABLE_RE = /coffee|end table|side table|power|module|floor box|cable|base\b|top\b/i;
+function tableFootprints(dxf, flat, memo) {
+  const out = [];
+  for (const ins of flat.inserts) {
+    if (!TABLE_RE.test(ins.cappd || '') || NOT_TABLE_RE.test(ins.cappd)) continue;
+    const bb = blockBox(dxf, ins.name, memo); if (!bb) continue;
+    out.push({ M: ins.M, bb });
+  }
+  return out;
+}
+function nearTable(x, y, tables, margin = 20) {
+  for (const t of tables) {
+    const M = t.M, det = M[0] * M[5] - M[1] * M[4]; if (Math.abs(det) < 1e-12) continue;
+    const dx = x - M[3], dy = y - M[7];
+    const lx = (M[5] * dx - M[1] * dy) / det, ly = (-M[4] * dx + M[0] * dy) / det;   // back into block space
+    const sc = Math.sqrt(Math.abs(det)) || 1, m = margin / sc;
+    if (lx >= t.bb[0] - m && lx <= t.bb[2] + m && ly >= t.bb[1] - m && ly <= t.bb[3] + m) return true;
+  }
+  return false;
+}
 function seatsFromBlocks(dxf, flat, modes) {
   const memo = new Map(), seats = [], deskIns = new Set();
+  const tables = tableFootprints(dxf, flat, memo);
   flat.inserts.forEach((ins, id) => {
     const mode = modes.get(ins.name) || 'OFF'; if (mode === 'OFF') return;
     const M = ins.M, bb = blockBox(dxf, ins.name, memo);
@@ -371,7 +394,7 @@ function seatsFromBlocks(dxf, flat, modes) {
     const at = (x, y) => ap(M, x, y, 0);
     if (mode === 'CHAIR' || !bb) {
       const c = bb ? at((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2) : at(0, 0);
-      seats.push({ x: c[0], y: c[1], w: 30, h: 30, a: 0, kind: 'O', row: c[1], src: 'auto' });
+      seats.push({ x: c[0], y: c[1], w: 30, h: 30, a: 0, kind: 'O', row: c[1], src: 'auto', atTable: nearTable(c[0], c[1], tables) });
       return;
     }
     deskIns.add(id);
@@ -467,7 +490,8 @@ function numberSeats(seats, start = 1) {
 
 /* ---------- VSDX ---------- */
 const SHEETS = { 'ANSI C': [22, 17], 'ARCH D': [36, 24], 'TABLOID': [17, 11] };
-const SCALES = [[96, '1/8" = 1\'-0"'], [128, '3/32" = 1\'-0"'], [192, '1/16" = 1\'-0"'], [384, '1/32" = 1\'-0"']];
+const SCALES = [[24, '1/2" = 1\'-0"'], [32, '3/8" = 1\'-0"'], [48, '1/4" = 1\'-0"'], [64, '3/16" = 1\'-0"'], [96, '1/8" = 1\'-0"'],
+  [128, '3/32" = 1\'-0"'], [192, '1/16" = 1\'-0"'], [384, '1/32" = 1\'-0"']];
 function pickScale(box, sheet) {
   const [sw, sh] = SHEETS[sheet] || SHEETS['ANSI C'];
   for (const [r, label] of SCALES) if ((box[2] - box[0]) / r <= sw - 1.5 && (box[3] - box[1]) / r <= sh - 1.5) return { ratio: r, label };

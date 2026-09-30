@@ -88,6 +88,7 @@ table.spec tr:last-child td{border-bottom:0}
   <button class="btn" id="loadBtn">LOAD DXF</button>
   <input id="loadFile" type="file" accept=".dxf" hidden>
   <button class="btn" id="newBtn">NEW</button>
+  <button class="btn" id="sampleBtn" title="Load SAMPLE-X, a small office suite">SAMPLE</button>
   <button class="btn" id="undoBtn" title="Ctrl+Z" disabled>UNDO</button>
   <div class="spacer"></div>
 {{BRAND}}
@@ -112,7 +113,7 @@ table.spec tr:last-child td{border-bottom:0}
       <canvas id="cvs"></canvas>
       <div id="drop">
         <div class="big">DROP A DXF HERE</div>
-        <div class="small">OR USE LOAD DXF. SAVE THE DRAWING FROM AUTOCAD AS AN AUTOCAD 2013 DXF, WITH NO FLATTEN, EXPLODE OR PURGE FIRST.</div>
+        <div class="small">OR USE LOAD DXF, OR CLICK SAMPLE TO TRY A SMALL OFFICE SUITE. SAVE THE DRAWING FROM AUTOCAD AS AN AUTOCAD 2013 DXF, WITH NO FLATTEN, EXPLODE OR PURGE FIRST.</div>
         <div class="small">THE DRAWING IS READ ON THIS COMPUTER. NOTHING IS UPLOADED.</div>
       </div>
       <div id="busy" hidden>READING DRAWING</div>
@@ -164,7 +165,7 @@ const BUILD = "{{BUILD}}";
 document.getElementById('buildTag').textContent = "BUILD " + BUILD;
 const $ = id => document.getElementById(id);
 const S = { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
-  removed: new Set(), added: [], edits: [], seats: [], mode: 'select', rot: false, showAll: false, hover: null,
+  removed: new Set(), restored: new Set(), added: [], edits: [], seats: [], mode: 'select', rot: false, showAll: false, hover: null,
   view: { s: 1, ox: 0, oy: 0 }, paths: null };
 const key = s => Math.round(s.x * 10) + ',' + Math.round(s.y * 10);
 const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -199,7 +200,7 @@ async function loadFile(file) {
 }
 function reset(clearName = true) {
   Object.assign(S, { file: null, dxf: null, flat: null, sc: null, cands: [], modes: new Map(), auto: [], loose: null, deskIns: null,
-    removed: new Set(), added: [], edits: [], seats: [], hover: null, paths: null });
+    removed: new Set(), restored: new Set(), added: [], edits: [], seats: [], hover: null, paths: null });
   if (clearName) $('floorName').value = '';
   $('drop').hidden = false; $('blkList').innerHTML = '<div class="note">Blocks that can be seats appear here after a drawing loads.</div>';
   $('blkMore').hidden = true; $('msgs').innerHTML = ''; $('spec').innerHTML = '<tr><td>FILE</td><td>&mdash;</td></tr>';
@@ -218,9 +219,10 @@ function derive() {
 }
 function renumber() {
   const autoAll = S.auto.concat($('looseCk').checked ? S.loose.runs.flatMap(r => r.seats) : []);
-  const live = autoAll.filter(s => !S.removed.has(key(s))).concat(S.added);
+  const out = s => S.removed.has(key(s)) || (s.atTable && !S.restored.has(key(s)));
+  const live = autoAll.filter(s => !out(s)).concat(S.added);
   S.seats = SM.numberSeats(live, parseInt($('startNum').value, 10) || 0);
-  S.ghosts = autoAll.filter(s => S.removed.has(key(s)));
+  S.ghosts = autoAll.filter(out);
   report(); draw();
 }
 function pushEdit(e) { S.edits.push(e); $('undoBtn').disabled = false; }
@@ -228,6 +230,8 @@ function undo() {
   const e = S.edits.pop(); if (!e) return;
   if (e.t === 'rm') S.removed.delete(e.k);
   else if (e.t === 'restore') S.removed.add(e.k);
+  else if (e.t === 'tblOn') S.restored.delete(e.k);
+  else if (e.t === 'tblOff') S.restored.add(e.k);
   else if (e.t === 'add') S.added = S.added.filter(s => s !== e.s);
   else if (e.t === 'del') S.added.push(e.s);
   $('undoBtn').disabled = !S.edits.length; renumber();
@@ -246,8 +250,10 @@ function clickAt(x, y) {
     const g = hitSeat(S.ghosts, x, y);
     const s = hitSeat(S.seats, x, y);
     if (s && s.src === 'added') { S.added = S.added.filter(a => a !== s); pushEdit({ t: 'del', s }); }
+    else if (s && s.atTable) { const k = key(s); S.restored.delete(k); pushEdit({ t: 'tblOff', k }); }
     else if (s) { const k = key(s); S.removed.add(k); pushEdit({ t: 'rm', k }); }
-    else if (g) { const k = key(g); S.removed.delete(k); pushEdit({ t: 'restore', k }); }
+    else if (g && S.removed.has(key(g))) { const k = key(g); S.removed.delete(k); pushEdit({ t: 'restore', k }); }
+    else if (g) { const k = key(g); S.restored.add(k); pushEdit({ t: 'tblOn', k }); }
     else return;
   } else {
     let w, h, kind;
@@ -296,13 +302,17 @@ function report() {
     .map(([a, b]) => '<tr><td>' + a + '</td><td>' + String(b).replace(/</g, '&lt;') + '</td></tr>').join('');
   const m = [];
   m.push(['g', seats.length + ' seats: ' + nB + ' at desks, ' + nO + ' office chairs.']);
+  const tbl = S.auto.filter(s => s.atTable), tblOut = tbl.filter(s => !S.restored.has(key(s))).length;
+  if (tbl.length) m.push(['w', tbl.length + ' task chair' + (tbl.length > 1 ? 's are' : ' is') + ' pulled up to a meeting or conference table. ' +
+    (tblOut ? tblOut + ' left out and shown dashed. Click one to make it a seat.' : 'All of them are in as seats.')]);
   if (S.flat.clipCount) m.push(['g', S.flat.clipCount + ' clipped block' + (S.flat.clipCount > 1 ? 's' : '') + ' (XCLIP) trimmed to what AutoCAD shows.']);
   if (S.loose.skipped.length) m.push(['w', S.loose.skipped.length + ' loose desk-layer piece' + (S.loose.skipped.length > 1 ? 's' : '') + ' not counted (' +
     S.loose.skipped.map(k => Math.round(k.w) + 'x' + Math.round(k.h)).join(', ') + '). They have no desk split, so they read as end tables or storage. Use ADD DESK if one is a seat.']);
   if (!seats.length) m.push(['w', 'No seats found. Set a block to a seat type above, or place seats with ADD DESK and ADD CHAIR.']);
   msg(m);
   $('foot').innerHTML = ['<span class="chip ok">' + seats.length + ' SEATS</span>', '<span class="chip">' + nB + ' DESKS</span>', '<span class="chip">' + nO + ' CHAIRS</span>',
-    S.removed.size ? '<span class="chip bad">' + S.removed.size + ' REMOVED</span>' : '', S.added.length ? '<span class="chip amb">' + S.added.length + ' ADDED</span>' : '',
+    S.removed.size ? '<span class="chip bad">' + S.removed.size + ' REMOVED</span>' : '',
+    S.auto.some(s => s.atTable && !S.restored.has(key(s))) ? '<span class="chip">' + S.auto.filter(s => s.atTable && !S.restored.has(key(s))).length + ' AT TABLES</span>' : '', S.added.length ? '<span class="chip amb">' + S.added.length + ' ADDED</span>' : '',
     '<span class="chip">' + $('sheet').value + ' &middot; ' + sc.label + '</span>'].join('');
   $('btnVSDX').disabled = !seats.length; $('btnVSDX').classList.toggle('on', !!seats.length);
 }
@@ -337,7 +347,7 @@ function paint() {
   ctx.lineWidth = 1 / v.s; ctx.strokeStyle = '#333c4d'; ctx.stroke(S.paths.furn);
   ctx.lineWidth = 1.1 / v.s; ctx.strokeStyle = '#8f9ab0'; ctx.stroke(S.paths.bg);
   const rect = (s) => { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a); ctx.beginPath(); ctx.rect(-s.w / 2, -s.h / 2, s.w, s.h); ctx.restore(); };
-  for (const s of S.ghosts || []) { rect(s); ctx.setLineDash([4 / v.s, 3 / v.s]); ctx.lineWidth = 1.2 / v.s; ctx.strokeStyle = '#ff6b6b'; ctx.stroke(); ctx.setLineDash([]); }
+  for (const s of S.ghosts || []) { rect(s); ctx.setLineDash([4 / v.s, 3 / v.s]); ctx.lineWidth = 1.2 / v.s; ctx.strokeStyle = S.removed.has(key(s)) ? '#ff6b6b' : '#f5a524'; ctx.stroke(); ctx.setLineDash([]); }
   for (const s of S.seats) {
     rect(s); ctx.fillStyle = s === S.hover ? '#ffe46b' : '#fff3a0'; ctx.fill();
     ctx.lineWidth = (s.src === 'added' ? 2 : 1) / v.s; ctx.strokeStyle = s.src === 'added' ? '#5ecf8d' : '#6b5d1c'; ctx.stroke();
@@ -405,6 +415,14 @@ $('rotBtn').onclick = () => { S.rot = !S.rot; $('rotBtn').classList.toggle('on',
 $('fitBtn').onclick = fit;
 $('undoBtn').onclick = undo;
 $('newBtn').onclick = () => reset(true);
+const SAMPLE_GZ = "{{SAMPLE}}";
+$('sampleBtn').onclick = async () => {
+  $('busy').hidden = false; $('busy').textContent = 'OPENING SAMPLE'; await frame();
+  const bin = Uint8Array.from(atob(SAMPLE_GZ), c => c.charCodeAt(0));
+  const buf = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  $('floorName').value = 'Sample Office Suite';
+  loadFile(new File([buf], 'SAMPLE-X.dxf'));
+};
 $('loadBtn').onclick = () => $('loadFile').click();
 $('loadFile').onchange = e => { loadFile(e.target.files[0]); e.target.value = ''; };
 $('btnVSDX').onclick = exportVSDX;
